@@ -1,0 +1,67 @@
+pipeline {
+    agent any // Runs on any available Jenkins agent
+
+    // Environment variables (optional, customize as needed)
+    environment {
+        ANSIBLE_PLAYBOOK = 'patch_rhel_servers.yml' // Name of your playbook file
+        ANSIBLE_INVENTORY = 'inventory.ini'         // Path to your Ansible inventory file
+        ANSIBLE_VAULT_PASS = credentials('ansible-vault-pass') // If your playbook uses encrypted vars
+        SLACK_TOKEN = credentials('slack-token')    // Slack token stored in Jenkins credentials
+    }
+
+    stages {
+        stage('Checkout Code') {
+            steps {
+                // Pull the playbook and inventory from a Git repository
+                git branch: 'main', url: 'https://github.com/your-repo/ansible-playbooks.git'
+            }
+        }
+
+        stage('Install Ansible Dependencies') {
+            steps {
+                // Ensure Ansible and required tools are installed
+                sh '''
+                    ansible --version || (sudo yum install -y ansible)
+                    ansible-galaxy collection install community.general
+                '''
+            }
+        }
+
+        stage('Run Ansible Playbook') {
+            steps {
+                // Execute the Ansible playbook
+                sh """
+                    ansible-playbook \
+                        -i ${ANSIBLE_INVENTORY} \
+                        ${ANSIBLE_PLAYBOOK} \
+                        --extra-vars "ansible_become_pass=\${ANSIBLE_VAULT_PASS}" \
+                        --extra-vars "slack_token=\${SLACK_TOKEN}" \
+                        -v
+                """
+            }
+        }
+    }
+
+    post {
+        success {
+            // Notify on success
+            slackSend (
+                color: 'good',
+                message: "Ansible Playbook *${ANSIBLE_PLAYBOOK}* completed successfully on ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                tokenCredentialId: 'slack-token'
+            )
+        }
+        failure {
+            // Notify on failure
+            slackSend (
+                color: 'danger',
+                message: "Ansible Playbook *${ANSIBLE_PLAYBOOK}* failed on ${env.JOB_NAME} #${env.BUILD_NUMBER}. Check logs for details.",
+                tokenCredentialId: 'slack-token'
+            )
+        }
+        always {
+            // Archive logs or artifacts (optional)
+            archiveArtifacts artifacts: '*.log', allowEmptyArchive: true
+        }
+    }
+}
