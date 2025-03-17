@@ -46,7 +46,7 @@
     - name: Decide action based on dot count
       block:
         - name: Apply security updates
-          shell: yum update --security -y
+          shell: yum update -y
           register: YUM_OUT
           async: 3600
           poll: 60
@@ -119,7 +119,7 @@
     - name: Decide action based on dot count
       block:
         - name: Apply security updates
-          shell: yum update --security -y
+          shell: yum update -y
           register: YUM_OUT
           async: 3600
           poll: 60
@@ -192,7 +192,7 @@
     - name: Decide action based on dot count
       block:
         - name: Apply security updates
-          shell: yum update --security -y
+          shell: yum update -y
           register: YUM_OUT
           async: 3600
           poll: 60
