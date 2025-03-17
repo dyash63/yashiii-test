@@ -75,12 +75,12 @@
             token: "E27SFGS2W/8416170273892/805231e396257ebe0f94b222fce97969"
             msg: "```{{ ansible_nodename }}\n\tSecurity updates applied.\n\t{{ needs_restarting_out.stdout }}```"
           delegate_to: localhost
-      when: dot_count is defined and dot_count >= 7
+      when: dot_count | int >= 7  # Convert dot_count to int before comparison
 
     - name: Output jobs are running
       debug:
         msg: "Server {{ inventory_hostname }} has jobs running, skipping patch."
-      when: dot_count < 7
+      when: dot_count | int < 7  # Convert dot_count to int before comparison
 
 # Check for no new jobs and patch servers ending with 02
 - name: Check for no new jobs and patch servers ending with 02
@@ -148,12 +148,12 @@
             token: "E27SFGS2W/8416170273892/805231e396257ebe0f94b222fce97969"
             msg: "```{{ ansible_nodename }}\n\tSecurity updates applied.\n\t{{ needs_restarting_out.stdout }}```"
           delegate_to: localhost
-      when: dot_count is defined and dot_count >= 7
+      when: dot_count | int >= 7  # Convert dot_count to int before comparison
 
     - name: Output jobs are running
       debug:
         msg: "Server {{ inventory_hostname }} has jobs running, skipping patch."
-      when: dot_count < 7
+      when: dot_count | int < 7  # Convert dot_count to int before comparison
 
 # Check for no new jobs and patch servers ending with 03
 - name: Check for no new jobs and patch servers ending with 03
@@ -221,9 +221,9 @@
             token: "E27SFGS2W/8416170273892/805231e396257ebe0f94b222fce97969"
             msg: "```{{ ansible_nodename }}\n\tSecurity updates applied.\n\t{{ needs_restarting_out.stdout }}```"
           delegate_to: localhost
-      when: dot_count is defined and dot_count >= 7
+      when: dot_count | int >= 7  # Convert dot_count to int before comparison
 
     - name: Output jobs are running
       debug:
         msg: "Server {{ inventory_hostname }} has jobs running, skipping patch."
-      when: dot_count < 7
+      when: dot_count | int < 7  # Convert dot_count to int before comparison
