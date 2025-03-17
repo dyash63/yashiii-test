@@ -6,7 +6,7 @@ pipeline {
         ANSIBLE_INVENTORY = 'inventory.ini' // Path to your Ansible inventory file
         ANSIBLE_USER = 'root' // Define your username
         ANSIBLE_PASSWORD = 'welcome@123' // Define your password
-        SLACK_TOKEN = 'E27SFGS2W/8416170273892/805231e396257ebe0f94b222fce97969' // Slack token (or fetch from a Jenkins secret)
+        PATH = "${tool 'Homebrew'}:/opt/homebrew/bin:${env.PATH}" // Ensure Homebrew's bin directory is in the PATH
     }
 
     stages {
@@ -21,7 +21,11 @@ pipeline {
             steps {
                 // Ensure Ansible and required tools are installed
                 sh '''
-                    ansible --version || (sudo yum install -y ansible)
+                    if ! command -v ansible &> /dev/null; then
+                        echo "Ansible is not installed. Installing..."
+                        brew install ansible
+                    fi
+                    ansible --version
                     ansible-galaxy collection install community.general
                 '''
             }
@@ -36,7 +40,6 @@ pipeline {
                         ${ANSIBLE_PLAYBOOK} \
                         --extra-vars "ansible_user=${ANSIBLE_USER}" \
                         --extra-vars "ansible_password=${ANSIBLE_PASSWORD}" \
-                        --extra-vars "slack_token=${SLACK_TOKEN}" \
                         -v
                 """
             }
@@ -45,20 +48,12 @@ pipeline {
 
     post {
         success {
-            // Notify on success
-            slackSend (
-                color: 'good',
-                message: "Ansible Playbook *${ANSIBLE_PLAYBOOK}* completed successfully on ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-                tokenCredentialId: 'slack-token'
-            )
+            // Notify on success (you can add any custom steps here if needed)
+            echo "Ansible Playbook *${ANSIBLE_PLAYBOOK}* completed successfully."
         }
         failure {
-            // Notify on failure
-            slackSend (
-                color: 'danger',
-                message: "Ansible Playbook *${ANSIBLE_PLAYBOOK}* failed on ${env.JOB_NAME} #${env.BUILD_NUMBER}. Check logs for details.",
-                tokenCredentialId: 'slack-token'
-            )
+            // Notify on failure (you can add any custom steps here if needed)
+            echo "Ansible Playbook *${ANSIBLE_PLAYBOOK}* failed. Check logs for details."
         }
         always {
             // Archive logs or artifacts (optional)
