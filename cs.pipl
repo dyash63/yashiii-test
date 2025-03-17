@@ -3,7 +3,7 @@ pipeline {
 
     // Environment variables (optional, customize as needed)
     environment {
-        ANSIBLE_PLAYBOOK = 'patch_rhel_servers.yml' // Name of your playbook file
+        ANSIBLE_PLAYBOOK = 'caplay.yaml' // Name of your playbook file
         ANSIBLE_INVENTORY = 'inventory.ini'         // Path to your Ansible inventory file
         ANSIBLE_VAULT_PASS = credentials('ansible-vault-pass') // If your playbook uses encrypted vars
         SLACK_TOKEN = credentials('slack-token')    // Slack token stored in Jenkins credentials
@@ -13,7 +13,7 @@ pipeline {
         stage('Checkout Code') {
             steps {
                 // Pull the playbook and inventory from a Git repository
-                git branch: 'main', url: 'https://github.com/your-repo/ansible-playbooks.git'
+                git branch: 'main', url: 'https://github.com/dyash63/yashiii-test.git'
             }
         }
 
