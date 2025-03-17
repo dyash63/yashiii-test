@@ -1,12 +1,12 @@
 pipeline {
     agent any // Runs on any available Jenkins agent
 
-    // Environment variables (optional, customize as needed)
     environment {
         ANSIBLE_PLAYBOOK = 'caplay.yaml' // Name of your playbook file
-        ANSIBLE_INVENTORY = 'inventory.ini'         // Path to your Ansible inventory file
-        ANSIBLE_VAULT_PASS = credentials('ansible-vault-pass') // If your playbook uses encrypted vars
-        SLACK_TOKEN = credentials('slack-token')    // Slack token stored in Jenkins credentials
+        ANSIBLE_INVENTORY = 'inventory.ini' // Path to your Ansible inventory file
+        ANSIBLE_USER = 'root' // Define your username
+        ANSIBLE_PASSWORD = 'welcome@123' // Define your password
+        SLACK_TOKEN = 'E27SFGS2W/8416170273892/805231e396257ebe0f94b222fce97969' // Slack token (or fetch from a Jenkins secret)
     }
 
     stages {
@@ -34,8 +34,9 @@ pipeline {
                     ansible-playbook \
                         -i ${ANSIBLE_INVENTORY} \
                         ${ANSIBLE_PLAYBOOK} \
-                        --extra-vars "ansible_become_pass=\${ANSIBLE_VAULT_PASS}" \
-                        --extra-vars "slack_token=\${SLACK_TOKEN}" \
+                        --extra-vars "ansible_user=${ANSIBLE_USER}" \
+                        --extra-vars "ansible_password=${ANSIBLE_PASSWORD}" \
+                        --extra-vars "slack_token=${SLACK_TOKEN}" \
                         -v
                 """
             }
