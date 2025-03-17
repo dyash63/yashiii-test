@@ -68,6 +68,10 @@
           become: true
 
         - debug: var=needs_restarting_out.stdout_lines
+
+        - name: Display update completion message
+          debug:
+            msg: "{{ ansible_nodename }} - Security updates applied. {{ needs_restarting_out.stdout }}"
       when: dot_count | int >= 7
 
     - name: Output jobs are running
@@ -136,11 +140,9 @@
 
         - debug: var=needs_restarting_out.stdout_lines
 
-        - name: Send notification to slack
-          community.general.slack:
-            token: "E27SFGS2W/8416170273892/805231e396257ebe0f94b222fce97969"
-            msg: "```{{ ansible_nodename }}\n\tSecurity updates applied.\n\t{{ needs_restarting_out.stdout }}```"
-          delegate_to: localhost
+        - name: Display update completion message
+          debug:
+            msg: "{{ ansible_nodename }} - Security updates applied. {{ needs_restarting_out.stdout }}"
       when: dot_count | int >= 7
 
     - name: Output jobs are running
@@ -209,11 +211,9 @@
 
         - debug: var=needs_restarting_out.stdout_lines
 
-        - name: Send notification to slack
-          community.general.slack:
-            token: "E27SFGS2W/8416170273892/805231e396257ebe0f94b222fce97969"
-            msg: "```{{ ansible_nodename }}\n\tSecurity updates applied.\n\t{{ needs_restarting_out.stdout }}```"
-          delegate_to: localhost
+        - name: Display update completion message
+          debug:
+            msg: "{{ ansible_nodename }} - Security updates applied. {{ needs_restarting_out.stdout }}"
       when: dot_count | int >= 7
 
     - name: Output jobs are running
