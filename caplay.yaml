@@ -9,6 +9,7 @@
         groups: "ending_{{ inventory_hostname[-2:] }}"
       loop: "{{ play_hosts }}"
 
+# Check for no new jobs and patch servers ending with 01
 - name: Check for no new jobs and patch servers ending with 01
   hosts: ending_01
   gather_facts: yes
@@ -63,7 +64,7 @@
 
         - name: Send notification to slack
           community.general.slack:
-            token: "E27SFGS2W/8416170273892/805231e396257ebe0f94b222fce97969"
+            token: "E27SFGS2W/8457ebe0f94b222fce97969"
             msg: "```{{ ansible_nodename }}\n\tSecurity updates applied.\n\t{{ needs_restarting_out.stdout }}```"
           delegate_to: localhost
       when: dot_count >= 7
@@ -73,6 +74,8 @@
         msg: "Server {{ inventory_hostname }} has jobs running, skipping patch."
       when: dot_count < 7
 
+
+# Check for no new jobs and patch servers ending with 02
 - name: Check for no new jobs and patch servers ending with 02
   hosts: ending_02
   gather_facts: yes
@@ -125,4 +128,80 @@
 
         - debug: var=needs_restarting_out.stdout_lines
 
-       
+        - name: Send notification to slack
+          community.general.slack:
+            token: "E27SFGS2W/8457ebe0f94b222fce97969"
+            msg: "```{{ ansible_nodename }}\n\tSecurity updates applied.\n\t{{ needs_restarting_out.stdout }}```"
+          delegate_to: localhost
+      when: dot_count >= 7
+
+    - name: Output jobs are running
+      debug:
+        msg: "Server {{ inventory_hostname }} has jobs running, skipping patch."
+      when: dot_count < 7
+
+
+# Check for no new jobs and patch servers ending with 03
+- name: Check for no new jobs and patch servers ending with 03
+  hosts: ending_03
+  gather_facts: yes
+  serial: 15
+  tasks:
+    - name: Run the script to generate dots for 15 seconds
+      shell: "/path/to/generate_dots.sh"
+      async: 15
+      poll: 0
+      register: dot_generation_job
+
+    - name: Wait for 15 seconds for the script to complete
+      wait_for:
+        timeout: 15
+
+    - name: Check for dots in the dummy log file
+      shell: "tail -n 100 /tmp/dummy_log.txt | grep -o '.' | wc -l"
+      register: job_check
+      failed_when: false
+      changed_when: false
+
+    - name: Count dots in output
+      set_fact:
+        dot_count: "{{ job_check.stdout | int }}"
+
+    - name: Decide action based on dot count
+      block:
+        - name: Apply security updates
+          shell: yum update --security -y
+          register: YUM_OUT
+          async: 3600
+          poll: 60
+          become: true
+
+        - debug: var=YUM_OUT.stdout_lines
+
+        - name: Install prereqs
+          yum:
+            name: yum-utils
+            state: installed
+          become: true
+
+        - name: Check if we need to restart
+          shell: /usr/bin/needs-restarting -r | grep -i reboot
+          check_mode: no
+          register: needs_restarting_out
+          failed_when: ( needs_restarting_out.rc not in [ 0, 1 ] )
+          changed_when: False
+          become: true
+
+        - debug: var=needs_restarting_out.stdout_lines
+
+        - name: Send notification to slack
+          community.general.slack:
+            token: "E27SFGS2W/8457ebe0f94b222fce97969"
+            msg: "```{{ ansible_nodename }}\n\tSecurity updates applied.\n\t{{ needs_restarting_out.stdout }}```"
+          delegate_to: localhost
+      when: dot_count >= 7
+
+    - name: Output jobs are running
+      debug:
+        msg: "Server {{ inventory_hostname }} has jobs running, skipping patch."
+      when: dot_count < 7
