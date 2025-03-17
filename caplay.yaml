@@ -1,12 +1,11 @@
----
 - name: Patch RHEL Servers
   hosts: all
   gather_facts: no
   tasks:
     - name: Group servers by ending
       add_host:
-        name: "{{ inventory_hostname }}"
-        groups: "ending_{{ inventory_hostname[-2:] }}"
+        name: "{{ item }}"
+        groups: "ending_{{ item[-2:] }}"
       loop: "{{ play_hosts }}"
 
 # Check for no new jobs and patch servers ending with 01
@@ -69,18 +68,12 @@
           become: true
 
         - debug: var=needs_restarting_out.stdout_lines
+      when: dot_count | int >= 7
 
-#        - name: Send notification to slack
- #         community.general.slack:
- #           token: "E27SFGS2W/8416170273892/805231e396257ebe0f94b222fce97969"
- #           msg: "```{{ ansible_nodename }}\n\tSecurity updates applied.\n\t{{ needs_restarting_out.stdout }}```"
-  #        delegate_to: localhost
-  #    when: dot_count | int >= 7  # Convert dot_count to int before comparison
-
-   # - name: Output jobs are running
-    #  debug:
-     #   msg: "Server {{ inventory_hostname }} has jobs running, skipping patch."
-     # when: dot_count | int < 7  # Convert dot_count to int before comparison
+    - name: Output jobs are running
+      debug:
+        msg: "Server {{ inventory_hostname }} has jobs running, skipping patch."
+      when: dot_count | int < 7
 
 # Check for no new jobs and patch servers ending with 02
 - name: Check for no new jobs and patch servers ending with 02
@@ -148,12 +141,12 @@
             token: "E27SFGS2W/8416170273892/805231e396257ebe0f94b222fce97969"
             msg: "```{{ ansible_nodename }}\n\tSecurity updates applied.\n\t{{ needs_restarting_out.stdout }}```"
           delegate_to: localhost
-      when: dot_count | int >= 7  # Convert dot_count to int before comparison
+      when: dot_count | int >= 7
 
     - name: Output jobs are running
       debug:
         msg: "Server {{ inventory_hostname }} has jobs running, skipping patch."
-      when: dot_count | int < 7  # Convert dot_count to int before comparison
+      when: dot_count | int < 7
 
 # Check for no new jobs and patch servers ending with 03
 - name: Check for no new jobs and patch servers ending with 03
@@ -221,9 +214,9 @@
             token: "E27SFGS2W/8416170273892/805231e396257ebe0f94b222fce97969"
             msg: "```{{ ansible_nodename }}\n\tSecurity updates applied.\n\t{{ needs_restarting_out.stdout }}```"
           delegate_to: localhost
-      when: dot_count | int >= 7  # Convert dot_count to int before comparison
+      when: dot_count | int >= 7
 
     - name: Output jobs are running
       debug:
         msg: "Server {{ inventory_hostname }} has jobs running, skipping patch."
-      when: dot_count | int < 7  # Convert dot_count to int before comparison
+      when: dot_count | int < 7
