@@ -6,7 +6,8 @@ pipeline {
         ANSIBLE_INVENTORY = 'inventory.ini' // Path to your Ansible inventory file
         ANSIBLE_USER = 'root' // Define your username
         ANSIBLE_PASSWORD = 'welcome@123' // Define your password
-        PATH = "${tool 'Homebrew'}:/opt/homebrew/bin:${env.PATH}" // Ensure Homebrew's bin directory is in the PATH
+        // Set PATH to include Homebrew's bin directory (adjust according to your installation)
+        PATH = "/opt/homebrew/bin:${env.PATH}" // For Apple Silicon; for Intel: /usr/local/bin
     }
 
     stages {
