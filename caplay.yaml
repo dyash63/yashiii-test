@@ -15,7 +15,7 @@
   serial: 15
   tasks:
     - name: Run the script to generate dots for 15 seconds
-      shell: "/path/to/generate_dots.sh"
+      shell: "/home/yash/generate_dots.sh"
       async: 15
       poll: 0
       register: dot_generation_job
@@ -82,7 +82,7 @@
   serial: 15
   tasks:
     - name: Run the script to generate dots for 15 seconds
-      shell: "/path/to/generate_dots.sh"
+      shell: "/home/yash/generate_dots.sh"
       async: 15
       poll: 0
       register: dot_generation_job
@@ -155,7 +155,7 @@
   serial: 15
   tasks:
     - name: Run the script to generate dots for 15 seconds
-      shell: "/path/to/generate_dots.sh"
+      shell: "/home/yash/generate_dots.sh"
       async: 15
       poll: 0
       register: dot_generation_job
