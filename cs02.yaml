@@ -52,16 +52,19 @@
             state: installed
           become: true
 
-        - name: Check if a reboot is required
-          command: /usr/bin/needs-restarting -r
+        - name: Check if we need to restart
+          shell: /usr/bin/needs-restarting -r | grep -i reboot
+          check_mode: no
           register: needs_restarting_out
-          changed_when: false
-          failed_when: needs_restarting_out.rc not in [0, 1]
+          failed_when: ( needs_restarting_out.rc not in [ 0, 1 ] )
+          changed_when: False
           become: true
+
+        - debug: var=needs_restarting_out.stdout_lines
 
         - name: Display update completion message
           debug:
-            msg: "{{ ansible_nodename }} - Security updates applied. Needs restart: {{ needs_restarting_out.stdout }}"
+            msg: "{{ inventory_hostname }} - Security updates applied. {{ needs_restarting_out.stdout }}"
 
     - name: Output if jobs are running
       debug:
