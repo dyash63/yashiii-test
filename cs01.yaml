@@ -64,7 +64,7 @@
 
         - name: Display update completion message
           debug:
-            msg: "{{ ansible_nodename }} - Security updates applied. {{ needs_restarting_out.stdout }}"
+            msg: "{{ inventory_hostname }} - Security updates applied. {{ needs_restarting_out.stdout }}"
 
     - name: Output if jobs are running
       debug:
