@@ -33,9 +33,13 @@
       set_fact:
         dot_count: "{{ job_check.stdout | trim | int }}"
 
+    - name: Display dot count
+      debug:
+        msg: "Dot count before patching: {{ dot_count }}"
+
     - name: Pause for 30 minutes before patching
       pause:
-        minutes: 1
+        minutes: 30
 
     - name: Apply security updates if no jobs are running
       when: dot_count | int >= 7
