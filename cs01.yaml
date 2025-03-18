@@ -35,7 +35,7 @@
 
     - name: Pause for 30 minutes before patching
       pause:
-        minutes: 30
+        minutes: 1
 
     - name: Apply security updates if no jobs are running
       when: dot_count | int >= 7
