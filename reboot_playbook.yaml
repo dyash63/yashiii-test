@@ -1,0 +1,20 @@
+- name: Reboot Patched Servers
+  hosts: all
+  gather_facts: no
+  tasks:
+    - name: Restart server
+      reboot:
+        msg: "Reboot initiated"
+        pre_reboot_delay: 5
+        post_reboot_delay: 60
+        test_command: uptime
+      become: true
+
+    - name: Show which server was rebooted
+      debug:
+        msg: "Reboot completed for server: {{ inventory_hostname }}"
+
+    - name: Wait for server to come online
+      wait_for_connection:
+        delay: 10
+        timeout: 120
