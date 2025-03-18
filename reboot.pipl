@@ -8,10 +8,6 @@ pipeline {
         PATH = "/opt/homebrew/bin:${env.PATH}"
     }
 
-    parameters {
-        string(name: 'TARGET_HOSTS', defaultValue: '', description: 'Comma-separated list of hosts to reboot')
-    }
-
     stages {
         stage('Checkout Code') {
             steps {
@@ -32,12 +28,13 @@ pipeline {
             }
         }
 
-        stage('User Input for Hosts') {
+        stage('User Input for Reboot Hosts') {
             steps {
                 script {
+                    // Prompt user to enter a comma-separated list of hosts
                     env.SELECTED_HOSTS = input(
                         message: 'Enter the hosts to reboot (comma-separated):',
-                        parameters: [string(defaultValue: '', description: 'Hosts', name: 'TARGET_HOSTS')]
+                        parameters: [string(defaultValue: '', description: 'Example: host01,host02,host03', name: 'Hosts')]
                     )
                 }
             }
@@ -46,7 +43,11 @@ pipeline {
         stage('Run Reboot Playbook') {
             steps {
                 script {
-                    def exitCode = sh(script: "ansible-playbook -i ${ANSIBLE_INVENTORY} reboot_playbook.yaml --extra-vars 'hosts=${SELECTED_HOSTS} ansible_user=${ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD}'", returnStatus: true)
+                    def exitCode = sh(script: '''
+                        ansible-playbook -i ${ANSIBLE_INVENTORY} reboot.yaml \
+                        --extra-vars "ansible_user=${ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD} target_hosts='${SELECTED_HOSTS}'"
+                    ''', returnStatus: true)
+
                     if (exitCode != 0) {
                         error "Reboot playbook failed! Check logs."
                     }
@@ -57,10 +58,10 @@ pipeline {
 
     post {
         success {
-            echo "Reboot completed successfully for selected hosts."
+            echo "Reboot process completed successfully."
         }
         failure {
-            echo "Reboot failed for some hosts. Check logs."
+            echo "Reboot process failed. Check logs."
         }
         always {
             archiveArtifacts artifacts: '*.log', allowEmptyArchive: true
