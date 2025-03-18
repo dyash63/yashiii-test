@@ -1,0 +1,69 @@
+- name: Patch RHEL Servers (Ending with 01)
+  hosts: all
+  gather_facts: no
+  tasks:
+    - name: Group servers by ending
+      add_host:
+        name: "{{ item }}"
+        groups: "ending_{{ item[-2:] }}"
+      loop: "{{ play_hosts }}"
+
+- name: Patch RHEL Servers (Ending with 01)
+  hosts: ending_01
+  gather_facts: no
+  serial: 15
+  tasks:
+    - name: Run the script to generate dots for 15 seconds
+      shell: "/home/yash/generate_dots.sh"
+      async: 15
+      poll: 0
+      register: dot_generation_job
+
+    - name: Wait for 15 seconds
+      wait_for:
+        timeout: 15
+
+    - name: Check log for dots
+      shell: "tail -n 100 /tmp/dummy_log.txt | grep -o '.' | wc -l"
+      register: job_check
+      changed_when: false
+      failed_when: false
+
+    - name: Count dots
+      set_fact:
+        dot_count: "{{ job_check.stdout | trim | int }}"
+
+    - name: Pause for 30 minutes before patching
+      pause:
+        minutes: 30
+
+    - name: Apply security updates if no jobs are running
+      when: dot_count | int >= 7
+      block:
+        - name: Apply security updates
+          yum:
+            name: '*'
+            state: latest
+          become: true
+
+        - name: Install prerequisite packages
+          yum:
+            name: yum-utils
+            state: installed
+          become: true
+
+        - name: Check if a reboot is required
+          command: /usr/bin/needs-restarting -r
+          register: needs_restarting_out
+          changed_when: false
+          failed_when: needs_restarting_out.rc not in [0, 1]
+          become: true
+
+        - name: Display update completion message
+          debug:
+            msg: "{{ ansible_nodename }} - Security updates applied. Needs restart: {{ needs_restarting_out.stdout }}"
+
+    - name: Output if jobs are running
+      debug:
+        msg: "Server {{ inventory_hostname }} has jobs running, skipping patch."
+      when: dot_count | int < 7
