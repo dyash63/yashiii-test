@@ -1,5 +1,5 @@
-- name: Reboot Patched Servers
-  hosts: all
+- name: Reboot Selected Servers
+  hosts: "{{ target_hosts.split(',') | map('trim') | list }}"
   gather_facts: no
   tasks:
     - name: Restart server
