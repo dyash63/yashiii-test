@@ -23,26 +23,38 @@
       wait_for:
         timeout: 15
 
-    - name: Check log for dots
-      shell: "tail -n 100 /tmp/dummy_log.txt | grep -o '.' | wc -l"
-      register: job_check
+    - name: Capture dot output
+      shell: "tail -n 100 /tmp/dummy_log.txt"
+      register: log_output
       changed_when: false
       failed_when: false
 
+    - name: Extract dots only
+      set_fact:
+        extracted_dots: "{{ log_output.stdout | regex_replace('[^.]', '') }}"
+
     - name: Count dots
       set_fact:
-        dot_count: "{{ job_check.stdout | trim | int }}"
+        dot_count: "{{ extracted_dots | length }}"
 
     - name: Display dot count
       debug:
         msg: "Dot count before patching: {{ dot_count }}"
 
+    - name: Check if log contains only dots
+      set_fact:
+        contains_only_dots: "{{ log_output.stdout | regex_search('^[.]+$', multiline=True) is not none }}"
+
+    - name: Display log validation status
+      debug:
+        msg: "Contains only dots: {{ contains_only_dots }}"
+
     - name: Pause for 30 minutes before patching
       pause:
-        minutes: 1
+        minutes: 30
 
-    - name: Apply security updates if no jobs are running
-      when: dot_count | int >= 7
+    - name: Apply security updates if log contains only dots and has at least 7 dots
+      when: contains_only_dots and (dot_count | int >= 7)
       block:
         - name: Apply security updates
           yum:
@@ -70,7 +82,7 @@
           debug:
             msg: "{{ inventory_hostname }} - Security updates applied. {{ needs_restarting_out.stdout }}"
 
-    - name: Output if jobs are running
+    - name: Output if patching is skipped
       debug:
-        msg: "Server {{ inventory_hostname }} has jobs running, skipping patch."
-      when: dot_count | int < 7
+        msg: "Server {{ inventory_hostname }} skipped patching due to invalid log output or insufficient dots."
+      when: not contains_only_dots or (dot_count | int < 7)
