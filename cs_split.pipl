@@ -1,0 +1,88 @@
+pipeline {
+    agent any
+
+    environment {
+        ANSIBLE_INVENTORY = 'inventory.ini' 
+        ANSIBLE_USER = 'root' 
+        ANSIBLE_PASSWORD = 'welcome@123' 
+        PATH = "/opt/homebrew/bin:${env.PATH}"
+    }
+
+    stages {
+        stage('Checkout Code') {
+            steps {
+                git branch: 'main', url: 'https://github.com/dyash63/yashiii-test.git'
+            }
+        }
+
+        stage('Install Ansible Dependencies') {
+            steps {
+                sh '''
+                    if ! command -v ansible &> /dev/null; then
+                        echo "Ansible is not installed. Installing..."
+                        brew install ansible
+                    fi
+                    ansible --version
+                    ansible-galaxy collection install community.general
+                '''
+            }
+        }
+
+        stage('Run Patch 01') {
+            steps {
+                script {
+                    def exitCode = sh(script: 'ansible-playbook -i ${ANSIBLE_INVENTORY} cs01.yaml --extra-vars "ansible_user=${ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD}"', returnStatus: true)
+                    if (exitCode != 0) {
+                        error "Patch 01 failed! Check logs."
+                    }
+                }
+            }
+        }
+
+        stage('User Confirmation for Patch 02') {
+            steps {
+                input message: 'Proceed with Patch 02?', ok: 'Yes'
+            }
+        }
+
+        stage('Run Patch 02') {
+            steps {
+                script {
+                    def exitCode = sh(script: 'ansible-playbook -i ${ANSIBLE_INVENTORY} cs02.yaml --extra-vars "ansible_user=${ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD}"', returnStatus: true)
+                    if (exitCode != 0) {
+                        error "Patch 02 failed! Check logs."
+                    }
+                }
+            }
+        }
+
+        stage('User Confirmation for Patch 03') {
+            steps {
+                input message: 'Proceed with Patch 03?', ok: 'Yes'
+            }
+        }
+
+        stage('Run Patch 03') {
+            steps {
+                script {
+                    def exitCode = sh(script: 'ansible-playbook -i ${ANSIBLE_INVENTORY} cs03.yaml --extra-vars "ansible_user=${ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD}"', returnStatus: true)
+                    if (exitCode != 0) {
+                        error "Patch 03 failed! Check logs."
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "All patches completed successfully."
+        }
+        failure {
+            echo "One or more patches failed. Check logs."
+        }
+        always {
+            archiveArtifacts artifacts: '*.log', allowEmptyArchive: true
+        }
+    }
+}
