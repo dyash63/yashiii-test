@@ -31,7 +31,7 @@ pipeline {
         stage('Run Patch 01') {
             steps {
                 script {
-                    def exitCode = sh(script: 'ansible-playbook -i ${ANSIBLE_INVENTORY} cs01.yaml --extra-vars "ansible_user=${ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD}"', returnStatus: true)
+                    def exitCode = sh(script: 'ansible-playbook -i ${ANSIBLE_INVENTORY} csprod01.yaml --extra-vars "ansible_user=${ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD}"', returnStatus: true)
                     if (exitCode != 0) {
                         error "Patch 01 failed! Check logs."
                     }
