@@ -1,0 +1,90 @@
+- name: Patch RHEL Servers (Ending with 01)
+  hosts: all
+  gather_facts: no
+  tasks:
+    - name: Group servers by ending
+      add_host:
+        name: "{{ item }}"
+        groups: "ending_{{ item[-2:] }}"
+      loop: "{{ play_hosts }}"
+
+- name: Patch RHEL Servers (Ending with 01)
+  hosts: ending_01
+  gather_facts: no
+  serial: 15
+  tasks:
+    - name: Check the log for "No new jobs found..."
+      shell: >
+        tail -f `ls -1t /var/log/cloudstor_manager/manager* | head -1` | awk '/No new jobs found.../{printf "."};!/No new/{print $0}'
+      register: log_output
+      changed_when: false
+      failed_when: false
+
+    - name: Pause for 15 seconds after log check
+      wait_for:
+        timeout: 15
+
+    - name: Extract dots only from log output
+      set_fact:
+        extracted_dots: "{{ log_output.stdout | regex_replace('[^.]', '') }}"
+
+    - name: Count dots
+      set_fact:
+        dot_count: "{{ extracted_dots | length }}"
+
+    - name: Display dot count
+      debug:
+        msg: "Dot count before patching: {{ dot_count }}"
+
+    - name: Check if log contains only dots
+      set_fact:
+        contains_only_dots: "{{ log_output.stdout | regex_search('^[.]+$', multiline=True) is not none }}"
+
+    - name: Display log validation status
+      debug:
+        msg: "Contains only dots: {{ contains_only_dots }}"
+
+    - name: Pause for 30 minutes before patching
+      pause:
+        minutes: 30
+
+    - name: Apply security updates if log contains only dots and has at least 7 dots
+      when: contains_only_dots and (dot_count | int >= 7)
+      block:
+        - name: Apply security updates
+          yum:
+            name: '*'
+            state: latest
+          become: true
+
+        - name: Install prerequisite packages
+          yum:
+            name: yum-utils
+            state: installed
+          become: true
+
+        - name: Check if we need to restart
+          shell: /usr/bin/needs-restarting -r | grep -i reboot
+          check_mode: no
+          register: needs_restarting_out
+          failed_when: ( needs_restarting_out.rc not in [ 0, 1 ] )
+          changed_when: False
+          become: true
+
+        - debug: var=needs_restarting_out.stdout_lines
+
+        - name: Display update completion message
+          debug:
+            msg: "{{ inventory_hostname }} - Security updates applied. {{ needs_restarting_out.stdout }}"
+
+       # - name: Send notification to Slack
+       #   community.general.slack:
+       #     token: "" 
+       #     channel: "" 
+       #     msg: "{{ inventory_hostname }} - Security updates applied. {{ needs_restarting_out.stdout }}"
+       #   delegate_to: localhost
+
+    - name: Output if patching is skipped
+      debug:
+        msg: "Server {{ inventory_hostname }} skipped patching due to invalid log output or insufficient dots."
+      when: not contains_only_dots or (dot_count | int < 7)
