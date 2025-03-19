@@ -26,10 +26,6 @@
       debug:
         msg: "output: {{ log_output }}"
 
-    - name: Pause for 15 seconds after log check
-      wait_for:
-        timeout: 15
-
     - name: Extract dots only from log output
       set_fact:
         extracted_dots: "{{ log_output.stdout | regex_replace('[^.]', '') }}"
@@ -37,10 +33,6 @@
     - name: Count dots
       set_fact:
         dot_count: "{{ extracted_dots | length }}"
-
-    - name: Display dot count
-      debug:
-        msg: "Dot count before patching: {{ dot_count }}"
 
     - name: Check if log contains only dots
       set_fact:
