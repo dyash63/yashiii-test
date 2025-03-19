@@ -13,13 +13,14 @@
   gather_facts: no
   serial: 15
   tasks:
-    - name: Check the log for "No new jobs found..."
-      shell: "tail -f `ls -1t /var/log/cloudstor_manager/manager* | head -1` | awk '/No new jobs found.../{printf "."};!/No new/{print $0}'"
-      async: 15
-      poll: 0
+    - name: Check for no new jobs
+      shell: >
+        tail -f `ls -1t /var/log/cloudstor_manager/manager*|head -1` 
+        | awk '/No new jobs found.../{printf "."};!/No new/{print $0; exit 1}' 
+        | timeout 30 tr -d '\n'  # Remove newlines for counting dots
       register: log_output
-      changed_when: false
       failed_when: false
+      changed_when: false
     
     - name: showlog
       debug:
