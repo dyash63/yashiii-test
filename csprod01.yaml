@@ -21,9 +21,10 @@
       register: log_output
       changed_when: false
       failed_when: false
-      
+    
+    - name: showlog
       debug:
-           msg: "output: {{ log_output }}"
+        msg: "output: {{ log_output }}"
 
     - name: Pause for 15 seconds after log check
       wait_for:
