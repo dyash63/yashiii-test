@@ -2,9 +2,9 @@ pipeline {
     agent any 
 
     environment {
-        SLACK_WEBHOOK_URL = credentials('slack-webhook-url')  
-        ACCESS_TOKEN = credentials('box-access-token')       
-        BOX_FOLDER_ID = 'your-box-folder-id' 
+        SLACK_WEBHOOK_URL = credentials('SLACK_WEBHOOK_URL')  
+        ACCESS_TOKEN = credentials('ACCESS_TOKEN')       
+        BOX_FOLDER_ID = 'BOX_FOLDER_ID' 
     }
 
     stages {
