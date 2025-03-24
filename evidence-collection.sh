@@ -33,7 +33,7 @@ for server in $(cat servers.txt); do
         echo ":x: Failed to connect to $server"
         continue
     fi
-    ssh_output1=$(ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -o ConnectTimeout=5 "$username@$server" \
+    ssh_output1=$(ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -o ConnectTimeout=5 "root@$server" \
     "hostname; ip -4 addr show eth0 | grep -oP '(?<=inet\s)\d+\.\d+\.\d+\.\d+'; date; uname -r; uptime -p; echo '---END_UPTIME---'; rpm -qa --last | grep -i '$current_month $current_year'" 2>&1)
     kernel_version=$(echo "$ssh_output")
     # Compare kernel version
