@@ -1,0 +1,51 @@
+pipeline {
+    agent any 
+
+    environment {
+        SLACK_WEBHOOK_URL = credentials('slack-webhook-url')  
+        ACCESS_TOKEN = credentials('box-access-token')       
+        BOX_FOLDER_ID = 'your-box-folder-id' 
+    }
+
+    stages {
+        stage('Checkout Code') {
+            steps {
+                git branch: 'main', url: 'https://github.com/PranujaB/Patching.git'
+            }
+        }
+
+        stage('Install Dependancies') {
+            steps {
+                sh '''
+                if ! command -v jq &> /dev/null; then
+                    echo "jq not found, installing it"
+                    sudo apt-get update && sudo apt-get install -y jq
+                fi
+                '''
+            }
+        }
+
+        stage('Run Bash Script') {
+            steps {
+                script {
+                    sh '''#!/bin/bash
+                    chmod +x ./evidence-collection.sh  
+                    ./evidence-collection.sh 
+                    '''
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "Evidence Collection completed successfully."
+        }
+        failure {
+            echo "Evidence Collection failed. Check logs."
+        }
+        always {
+            archiveArtifacts artifacts: '*.log', allowEmptyArchive: true
+        }
+    }
+}
