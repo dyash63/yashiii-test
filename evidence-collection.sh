@@ -28,7 +28,7 @@ outdated_kernels=()
 for server in $(cat servers.txt); do
     echo "Collecting data from $server..."
     # Get Kernel Version
-    ssh_output=$(ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -o ConnectTimeout=5 "$username@$server" "uname -r" 2>&1)
+    ssh_output=$(ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -o ConnectTimeout=5 "$root@$server" "uname -r" 2>&1)
     if [ $? -ne 0 ]; then
         echo ":x: Failed to connect to $server"
         continue
