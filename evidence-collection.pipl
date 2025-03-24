@@ -25,6 +25,15 @@ pipeline {
             }
         }
 
+        stage('Read server.txt') {
+            steps {
+                script {
+                    def content = readFile 'server.txt'
+                    echo "File content: ${content}"
+                }
+            }
+        }
+
         stage('Run Bash Script') {
             steps {
                 script {
