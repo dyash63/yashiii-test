@@ -25,10 +25,10 @@ pipeline {
             }
         }
 
-        stage('Read server.txt') {
+        stage('Read servers.txt') {
             steps {
                 script {
-                    def content = readFile 'server.txt'
+                    def content = readFile 'servers.txt'
                     echo "File content: ${content}"
                 }
             }
