@@ -124,7 +124,7 @@ pipeline {
                 script {
                     def imsSrrInput = input(
                         id: 'imsSrrApproval02', 
-                        message: 'Is IMS SRR disabled for 02 Hosts?', 
+                        message: 'Is IMS SRR disabled for 03 Hosts?', 
                         parameters: [choice(name: 'IMS_SRR', choices: ['yes', 'no'], description: 'Select yes or no')]
                     )
                     def imsSrrDisabled = imsSrrInput == 'yes' ? 'true' : 'false'
