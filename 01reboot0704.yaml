@@ -7,7 +7,6 @@
         name: "{{ item }}"
         groups: "ending_{{ item[-2:] }}"
       loop: "{{ play_hosts }}"
-      
 
 - name: Reboot RHEL Servers (Ending with 01)
   hosts: ending_01
@@ -21,23 +20,23 @@
         post_reboot_delay: 60
         test_command: uptime
       become: true
-      
-  - name: Show which server was rebooted
-    debug:
-      msg: "Reboot completed for server: {{ inventory_hostname }}"
 
-  - name: Wait for server to come online 
-    wait_for_connection:
-      delay: 10
-      timeout: 120
+    - name: Show which server was rebooted
+      debug:
+        msg: "Reboot completed for server: {{ inventory_hostname }}"
+
+    - name: Wait for server to come online 
+      wait_for_connection:
+        delay: 10
+        timeout: 120
 
     - name: Display reboot completion message
       debug:
         msg: "{{ inventory_hostname }} - Server rebooted successfully."
 
-  - name: Check status of imagestore service
-    service:
-      name: rsyslog
-      state: started
-    register: service_status
-    become: true
+    - name: Check status of imagestore service
+      service:
+        name: rsyslog
+        state: started
+      register: service_status
+      become: true
