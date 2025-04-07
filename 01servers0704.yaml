@@ -8,6 +8,8 @@
         groups: "ending_{{ item[-2:] }}"
       loop: "{{ play_hosts }}"
 
+---
+
 - name: Validate and reboot ending_01 servers
   hosts: ending_01
   gather_facts: false
@@ -35,12 +37,9 @@
       set_fact:
         contains_only_dots: "{{ log_output.stdout | regex_search('^[.]+$', multiline=True) is not none }}"
 
-    - name: Show dot count and log validation status
+    - name: Show log validation status
       debug:
-        msg: >
-          Log Valid: {{ contains_only_dots }},
-          Dot Count: {{ dot_count }},
-          Host: {{ inventory_hostname }}
+        msg: "Contains only dots: {{ contains_only_dots }}, Dot count: {{ dot_count }}"
 
     - name: Prompt: Is IMS SRR disabled?
       pause:
@@ -77,7 +76,7 @@
             delay: 10
             timeout: 120
 
-    - name: Skip message if reboot conditions not met
-      when: not contains_only_dots or (dot_count | int < 7)
+    - name: Skip reboot if conditions are not met
+      when: not (contains_only_dots and (dot_count | int >= 7))
       debug:
-        msg: "Skipping reboot for {{ inventory_hostname }} due to invalid log or insufficient dots."
+        msg: "Skipping reboot for {{ inventory_hostname }} due to invalid log output or insufficient dots."
