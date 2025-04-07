@@ -1,4 +1,14 @@
 - name: Reboot RHEL Servers (Ending with 01)
+  hosts: all
+  gather_facts: no
+  tasks:
+    - name: Group servers by ending
+      add_host:
+        name: "{{ item }}"
+        groups: "ending_{{ item[-2:] }}"
+      loop: "{{ play_hosts }}"
+
+- name: Reboot RHEL Servers (Ending with 01)
   hosts: ending_01
   gather_facts: no
   serial: 15
