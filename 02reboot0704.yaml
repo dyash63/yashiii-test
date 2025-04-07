@@ -1,0 +1,32 @@
+- name: Group servers by ending digits
+  hosts: all
+  gather_facts: no
+  tasks:
+    - name: Group servers by ending
+      add_host:
+        name: "{{ item }}"
+        groups: "ending_{{ item[-2:] }}"
+      loop: "{{ play_hosts }}"
+      
+
+- name: Reboot RHEL Servers (Ending with 02)
+  hosts: ending_02
+  gather_facts: no
+  serial: 15
+  tasks:
+    - name: Reboot the server
+      reboot:
+        msg: "Reboot initiated"
+        pre_reboot_delay: 5
+        post_reboot_delay: 60
+        test_command: uptime
+      become: true
+
+    - name: Display reboot completion message
+      debug:
+        msg: "{{ inventory_hostname }} - Server rebooted successfully."
+
+    - name: Wait for server to come online
+      wait_for_connection:
+        delay: 10
+        timeout: 120
