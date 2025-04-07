@@ -1,0 +1,91 @@
+     pipeline {
+    agent any
+
+    environment {
+        ANSIBLE_INVENTORY = 'inventory.ini' 
+        ANSIBLE_USER = 'root' 
+        ANSIBLE_PASSWORD = 'welcome@123' 
+        PATH = "/opt/homebrew/bin:${env.PATH}"
+    }
+
+    stages {
+        stage('Checkout Code') {
+            steps {
+                git branch: 'main', url: 'https://github.com/dyash63/yashiii-test.git'
+            }
+        }
+
+        stage('Install Ansible Dependencies') {
+            steps {
+                sh '''
+                    if ! command -v ansible &> /dev/null; then
+                        echo "Ansible is not installed. Installing..."
+                        brew install ansible
+                    fi
+                    ansible --version
+                    ansible-galaxy collection install community.general
+                '''
+            }
+        }
+
+        stage('Patch All Hosts') {
+            steps {
+                script {
+                    def exitCode = sh(script: 'ansible-playbook -i ${ANSIBLE_INVENTORY} patch_all.yaml --extra-vars "ansible_user=${ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD}"', returnStatus: true)
+                    if (exitCode != 0) {
+                        error "Patching failed! Check logs."
+                    }
+                }
+            }
+        }
+
+        stage('Validate & Reboot 01 Hosts') {
+            steps {
+                input message: 'Proceed with Validation and Reboot of 01 Hosts?', ok: 'Yes'
+                script {
+                    def exitCode = sh(script: 'ansible-playbook -i ${ANSIBLE_INVENTORY} validate_01.yaml --extra-vars "ansible_user=${ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD}"', returnStatus: true)
+                    if (exitCode != 0) {
+                        error "Validation/Reboot of 01 Hosts failed! Check logs."
+                    }
+                }
+            }
+        }
+
+        stage('Validate & Reboot 02 Hosts') {
+            steps {
+                input message: 'Proceed with Validation and Reboot of 02 Hosts?', ok: 'Yes'
+                script {
+                    def exitCode = sh(script: 'ansible-playbook -i ${ANSIBLE_INVENTORY} validate_02.yaml --extra-vars "ansible_user=${ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD}"', returnStatus: true)
+                    if (exitCode != 0) {
+                        error "Validation/Reboot of 02 Hosts failed! Check logs."
+                    }
+                }
+            }
+        }
+
+        stage('Validate & Reboot 03 Hosts') {
+            steps {
+                input message: 'Proceed with Validation and Reboot of 03 Hosts?', ok: 'Yes'
+                script {
+                    def exitCode = sh(script: 'ansible-playbook -i ${ANSIBLE_INVENTORY} validate_03.yaml --extra-vars "ansible_user=${ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD}"', returnStatus: true)
+                    if (exitCode != 0) {
+                        error "Validation/Reboot of 03 Hosts failed! Check logs."
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "Patching and reboots completed successfully."
+        }
+        failure {
+            echo "One or more stages failed. Check logs."
+        }
+        always {
+            archiveArtifacts artifacts: '*.log', allowEmptyArchive: true
+        }
+    }
+}
+
