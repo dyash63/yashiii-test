@@ -1,15 +1,16 @@
-- name: Group and reboot ending_01 servers
+- name: Group servers by ending digits for reboots
   hosts: all
   gather_facts: false
   tasks:
     - name: Group servers by ending
       add_host:
-        name: "{{ inventory_hostname }}"
-        groups: "ending_{{ inventory_hostname[-2:] }}"
+        name: "{{ item }}"
+        groups: "ending_{{ item[-2:] }}"
+      loop: "{{ play_hosts }}"
 
 - name: Validate and reboot ending_01 servers
   hosts: ending_01
-  gather_facts: no
+  gather_facts: false
   serial: 15
   tasks:
     - name: Check for no new jobs
@@ -34,17 +35,27 @@
       set_fact:
         contains_only_dots: "{{ log_output.stdout | regex_search('^[.]+$', multiline=True) is not none }}"
 
+    - name: Show dot count and log validation status
+      debug:
+        msg: >
+          Log Valid: {{ contains_only_dots }},
+          Dot Count: {{ dot_count }},
+          Host: {{ inventory_hostname }}
+
     - name: Prompt: Is IMS SRR disabled?
       pause:
         prompt: "Is IMS SRR disabled for {{ inventory_hostname }}? Type 'yes' to continue"
+        echo: yes
 
     - name: Prompt: Do you want to enable IMS SRR?
       pause:
         prompt: "Turn on IMS SRR for {{ inventory_hostname }}? Type 'yes' to confirm"
+        echo: yes
 
     - name: Prompt: Proceed with reboot?
       pause:
         prompt: "Proceed with reboot for {{ inventory_hostname }}? Type 'yes' to continue"
+        echo: yes
 
     - name: Reboot host (only if all conditions are met)
       when: contains_only_dots and (dot_count | int >= 7)
@@ -65,3 +76,8 @@
           wait_for_connection:
             delay: 10
             timeout: 120
+
+    - name: Skip message if reboot conditions not met
+      when: not contains_only_dots or (dot_count | int < 7)
+      debug:
+        msg: "Skipping reboot for {{ inventory_hostname }} due to invalid log or insufficient dots."
