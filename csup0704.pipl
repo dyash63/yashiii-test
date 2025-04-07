@@ -45,7 +45,7 @@ pipeline {
                 input message: 'Proceed with Validation of 01 Hosts?', ok: 'Yes'
                 script {
                     // Run validation playbook and save facts to a file
-                    def exitCode = sh(script: 'ansible-playbook -i ${ANSIBLE_INVENTORY} 01servers0704.yaml --extra-vars "ansible_user=${ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD}"', hidden: true)
+                    def exitCode = sh(script: 'ansible-playbook -i ${ANSIBLE_INVENTORY} 01servers0704.yaml --extra-vars "ansible_user=${ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD}"', returnStatus: true)
                     if (exitCode != 0) {
                         error "Validation of 01 Hosts failed! Check logs."
                     }
@@ -65,7 +65,7 @@ pipeline {
                     )
                     def imsSrrDisabled = imsSrrInput == 'yes' ? 'true' : 'false'
                     
-                    def exitCode = sh(script: 'ansible-playbook -i ${ANSIBLE_INVENTORY} 01reboot0704.yaml --extra-vars "ansible_user=${ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD} ims_srr_disabled=${imsSrrDisabled}"', hidden: true)
+                    def exitCode = sh(script: 'ansible-playbook -i ${ANSIBLE_INVENTORY} 01reboot0704.yaml --extra-vars "ansible_user=${ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD} ims_srr_disabled=${imsSrrDisabled}"', returnStatus: true)
                     if (exitCode != 0) {
                         error "Reboot of 01 Hosts failed! Check logs."
                     }
@@ -78,7 +78,7 @@ pipeline {
             steps {
                 input message: 'Proceed with Validation of 02 Hosts?', ok: 'Yes'
                 script {
-                    def exitCode = sh(script: 'ansible-playbook -i ${ANSIBLE_INVENTORY} 02servers0704.yaml  --extra-vars "ansible_user=${ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD}"', hidden: true)
+                    def exitCode = sh(script: 'ansible-playbook -i ${ANSIBLE_INVENTORY} 02servers0704.yaml  --extra-vars "ansible_user=${ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD}"', returnStatus: true)
                     if (exitCode != 0) {
                         error "Validation of 02 Hosts failed! Check logs."
                     }
@@ -97,7 +97,7 @@ pipeline {
                     )
                     def imsSrrDisabled = imsSrrInput == 'yes' ? 'true' : 'false'
                     
-                    def exitCode = sh(script: 'ansible-playbook -i ${ANSIBLE_INVENTORY} 02reboot0704.yaml --extra-vars "ansible_user=${ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD} ims_srr_disabled=${imsSrrDisabled}"', hidden: true)
+                    def exitCode = sh(script: 'ansible-playbook -i ${ANSIBLE_INVENTORY} 02reboot0704.yaml --extra-vars "ansible_user=${ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD} ims_srr_disabled=${imsSrrDisabled}"', returnStatus: true)
                     if (exitCode != 0) {
                         error "Reboot of 02 Hosts failed! Check logs."
                     }
