@@ -1,4 +1,4 @@
-- name: Patch RHEL Servers (Ending with 03)
+- name: Validate RHEL Servers (Ending with 03)
   hosts: all
   gather_facts: no
   tasks:
@@ -8,7 +8,7 @@
         groups: "ending_{{ item[-2:] }}"
       loop: "{{ play_hosts }}"
 
-- name: Patch RHEL Servers (Ending with 03)
+- name: Validate RHEL Servers (Ending with 03)
   hosts: ending_03
   gather_facts: no
   serial: 15
