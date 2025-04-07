@@ -64,7 +64,7 @@ pipeline {
                     )
                     def imsSrrDisabled = imsSrrInput == 'yes' ? 'true' : 'false'
                     
-                    def exitCode = sh(script: 'ansible-playbook -i ${ANSIBLE_INVENTORY} 01reboot0704.yaml --extra-vars "ansible_user=${ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD} ims_srr_disabled=${imsSrrDisabled}" --fact-caching jsonfile', returnStatus: true)
+                    def exitCode = sh(script: 'ansible-playbook -i ${ANSIBLE_INVENTORY} 01reboot0704.yaml --extra-vars "ansible_user=${ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD} ims_srr_disabled=${imsSrrDisabled}"', returnStatus: true)
                     if (exitCode != 0) {
                         error "Reboot of 01 Hosts failed! Check logs."
                     }
