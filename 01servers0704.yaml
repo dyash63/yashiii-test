@@ -1,3 +1,4 @@
+---
 - name: Group servers by ending digits (create ending_01 group)
   hosts: all
   gather_facts: false
