@@ -1,5 +1,5 @@
 [local_vms]
-host01 ansible_host=172.16.151.128  
-host02 ansible_host=172.16.151.129  
-host03 ansible_host=172.16.151.130  
-host-03 ansible_host=172.16.151.131  
+cloudstorind2101 ansible_host=172.16.151.128  
+cloudstorind2102 ansible_host=172.16.151.129 
+cloudstorind2103 ansible_host=172.16.151.130
+cloudstorind2201 ansible_host=172.16.151.131 
