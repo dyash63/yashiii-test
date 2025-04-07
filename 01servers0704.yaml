@@ -1,4 +1,4 @@
-- name: Group servers by ending digits
+- name: Patch RHEL Servers (Ending with 01)
   hosts: all
   gather_facts: no
   tasks:
@@ -8,24 +8,23 @@
         groups: "ending_{{ item[-2:] }}"
       loop: "{{ play_hosts }}"
 
-- name: Validate log status for servers ending with 01
+- name: Patch RHEL Servers (Ending with 01)
   hosts: ending_01
   gather_facts: no
   serial: 15
   tasks:
     - name: Check for no new jobs
       shell: >
-        timeout 30 bash -c '
-        tail -F $(ls -1t /var/log/cloudstor_manager/manager* | head -1) |
-        awk "/No new jobs found.../{printf \\".\\"};!/No new/{print \$0; exit 1}"
-        '
+        tail -f `ls -1t /var/log/cloudstor_manager/manager*|head -1` 
+        | awk '/No new jobs found.../{printf "."};!/No new/{print $0; exit 1}' 
+        | timeout 30 tr -d '\n'  # Remove newlines for counting dots
       register: log_output
       failed_when: false
       changed_when: false
-
-    - name: Show log output
+    
+    - name: showlog
       debug:
-        msg: "Raw log output: {{ log_output.stdout }}"
+        msg: "output: {{ log_output }}"
 
     - name: Extract dots only from log output
       set_fact:
@@ -41,14 +40,4 @@
 
     - name: Display log validation status
       debug:
-        msg: "Contains only dots: {{ contains_only_dots }}, Dot count: {{ dot_count }}"
-
-    - name: Output message if server is valid
-      debug:
-        msg: "Server {{ inventory_hostname }} is ready — log valid with {{ dot_count }} dots."
-      when: contains_only_dots and (dot_count | int >= 7)
-
-    - name: Output message if server is NOT valid
-      debug:
-        msg: "Server {{ inventory_hostname }} skipped — log invalid or insufficient dots."
-      when: not (contains_only_dots and (dot_count | int >= 7))
+        msg: "Contains only dots: {{ contains_only_dots }}"
