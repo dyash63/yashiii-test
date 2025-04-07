@@ -9,8 +9,8 @@
       loop: "{{ play_hosts }}"
       
 
-- name: Reboot RHEL Servers (Ending with 01)
-  hosts: ending_01
+- name: Reboot RHEL Servers (Ending with 03)
+  hosts: ending_03
   gather_facts: no
   serial: 15
   tasks:
