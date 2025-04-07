@@ -1,0 +1,28 @@
+- name: Patch All RHEL Servers
+  hosts: all
+  gather_facts: no
+  serial: 15
+  tasks:
+    - name: Apply security updates
+      yum:
+        name: '*'
+        state: latest
+      become: true
+
+    - name: Install prerequisite packages
+      yum:
+        name: yum-utils
+        state: installed
+      become: true
+
+    - name: Check if we need to restart
+      shell: /usr/bin/needs-restarting -r | grep -i reboot
+      check_mode: no
+      register: needs_restarting_out
+      failed_when: ( needs_restarting_out.rc not in [ 0, 1 ] )
+      changed_when: false
+      become: true
+
+    - name: Output reboot requirement
+      debug:
+        var: needs_restarting_out.stdout_lines
