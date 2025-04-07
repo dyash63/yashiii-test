@@ -1,5 +1,4 @@
----
-- name: Group servers by ending digits (create ending_01 group)
+- name: Group and reboot ending_01 servers
   hosts: all
   gather_facts: false
   tasks:
@@ -7,8 +6,6 @@
       add_host:
         name: "{{ inventory_hostname }}"
         groups: "ending_{{ inventory_hostname[-2:] }}"
-
----
 
 - name: Validate and reboot ending_01 servers
   hosts: ending_01
