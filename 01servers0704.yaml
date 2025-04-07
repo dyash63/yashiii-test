@@ -1,4 +1,4 @@
-- name: Patch RHEL Servers (Ending with 01)
+- name: Group RHEL Servers (Ending with 01)
   hosts: all
   gather_facts: no
   tasks:
@@ -8,7 +8,7 @@
         groups: "ending_{{ item[-2:] }}"
       loop: "{{ play_hosts }}"
 
-- name: Patch RHEL Servers (Ending with 01)
+- name: Reboot RHEL Servers (Ending with 01)
   hosts: ending_01
   gather_facts: no
   serial: 15
@@ -42,9 +42,9 @@
       debug:
         msg: "Contains only dots: {{ contains_only_dots }}"
 
-    - name: Pause and prompt user before patching
+    - name: Pause and prompt user before reboot
       pause:
-        minutes: 1  # Optional: Remove this if you only want to wait for user input
+        minutes: 1  # Optional timeout; remove if only waiting for input
         prompt: "Is IMS SRR disabled? (yes/no)"
       register: prompt_response
 
@@ -52,38 +52,20 @@
       set_fact:
         ims_srr_disabled: "{{ prompt_response.user_input | lower == 'yes' }}"
 
-    - name: Apply security updates if conditions are met
+    - name: Reboot server if conditions are met
       when: contains_only_dots and (dot_count | int >= 7) and ims_srr_disabled
       block:
-        - name: Apply security updates
-          yum:
-            name: '*'
-            state: latest
+        - name: Reboot the server
+          reboot:
+            reboot_timeout: 600  # Wait up to 10 minutes for reboot
+            post_reboot_delay: 60  # Wait 60 seconds after reboot before checking
           become: true
 
-        - name: Install prerequisite packages
-          yum:
-            name: yum-utils
-            state: installed
-          become: true
-
-        - name: Check if we need to restart
-          shell: /usr/bin/needs-restarting -r | grep -i reboot
-          check_mode: no
-          register: needs_restarting_out
-          failed_when: "(needs_restarting_out.rc not in [0, 1])"
-          changed_when: false
-          become: true
-
-        - name: Debug restart check output
+        - name: Display reboot completion message
           debug:
-            var: needs_restarting_out.stdout_lines
+            msg: "{{ inventory_hostname }} - Server rebooted successfully."
 
-        - name: Display update completion message
-          debug:
-            msg: "{{ inventory_hostname }} - Security updates applied. {{ needs_restarting_out.stdout }}"
-
-    - name: Output if patching is skipped
+    - name: Output if reboot is skipped
       debug:
-        msg: "Server {{ inventory_hostname }} skipped patching due to invalid log output, insufficient dots, or IMS SRR not disabled."
+        msg: "Server {{ inventory_hostname }} skipped reboot due to invalid log output, insufficient dots, or IMS SRR not disabled."
       when: not contains_only_dots or (dot_count | int < 7) or not ims_srr_disabled
