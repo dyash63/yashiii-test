@@ -1,0 +1,69 @@
+- name: Group servers by ending digits (create ending_03 group)
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Group servers by ending
+      add_host:
+        name: "{{ inventory_hostname }}"
+        groups: "ending_{{ inventory_hostname[-2:] }}"
+
+---
+
+- name: Validate and reboot ending_03 servers
+  hosts: ending_03
+  gather_facts: no
+  serial: 15
+  tasks:
+    - name: Check for no new jobs
+      shell: >
+        timeout 30 bash -c '
+        tail -F $(ls -1t /var/log/cloudstor_manager/manager* | head -1) |
+        awk "/No new jobs found.../{printf \\".\\"};!/No new/{print \$0; exit 1}"
+        '
+      register: log_output
+      failed_when: false
+      changed_when: false
+
+    - name: Extract dots only from log output
+      set_fact:
+        extracted_dots: "{{ log_output.stdout | regex_replace('[^.]', '') }}"
+    
+    - name: Count dots
+      set_fact:
+        dot_count: "{{ extracted_dots | length }}"
+    
+    - name: Check if log contains only dots
+      set_fact:
+        contains_only_dots: "{{ log_output.stdout | regex_search('^[.]+$', multiline=True) is not none }}"
+
+    - name: Prompt: Is IMS SRR disabled?
+      pause:
+        prompt: "Is IMS SRR disabled for {{ inventory_hostname }}? Type 'yes' to continue"
+
+    - name: Prompt: Do you want to enable IMS SRR?
+      pause:
+        prompt: "Turn on IMS SRR for {{ inventory_hostname }}? Type 'yes' to confirm"
+
+    - name: Prompt: Proceed with reboot?
+      pause:
+        prompt: "Proceed with reboot for {{ inventory_hostname }}? Type 'yes' to continue"
+
+    - name: Reboot host (only if all conditions are met)
+      when: contains_only_dots and (dot_count | int >= 7)
+      block:
+        - name: Restart server
+          reboot:
+            msg: "Reboot initiated"
+            pre_reboot_delay: 5
+            post_reboot_delay: 60
+            test_command: uptime
+          become: true
+
+        - name: Show which server was rebooted
+          debug:
+            msg: "Reboot completed for server: {{ inventory_hostname }}"
+
+        - name: Wait for server to come online
+          wait_for_connection:
+            delay: 10
+            timeout: 120
