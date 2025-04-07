@@ -1,10 +1,119 @@
-     pipeline {
+- name: Patch All RHEL Servers
+  hosts: all
+  gather_facts: no
+  serial: 15
+  tasks:
+    - name: Apply security updates
+      yum:
+        name: '*'
+        state: latest
+      become: true
+
+    - name: Install prerequisite packages
+      yum:
+        name: yum-utils
+        state: installed
+      become: true
+
+    - name: Check if we need to restart
+      shell: /usr/bin/needs-restarting -r | grep -i reboot
+      check_mode: no
+      register: needs_restarting_out
+      failed_when: ( needs_restarting_out.rc not in [ 0, 1 ] )
+      changed_when: false
+      become: true
+
+    - name: Output reboot requirement
+      debug:
+        var: needs_restarting_out.stdout_lines
+
+
+
+- name: Group servers by ending digits (create ending_01 group)
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Group servers by ending
+      add_host:
+        name: "{{ inventory_hostname }}"
+        groups: "ending_{{ inventory_hostname[-2:] }}"
+
+---
+
+- name: Validate and reboot ending_01 servers
+  hosts: ending_01
+  gather_facts: no
+  serial: 15
+  tasks:
+    - name: Check for no new jobs
+      shell: >
+        timeout 30 bash -c '
+        tail -F $(ls -1t /var/log/cloudstor_manager/manager* | head -1) |
+        awk "/No new jobs found.../{printf \\".\\"};!/No new/{print \$0; exit 1}"
+        '
+      register: log_output
+      failed_when: false
+      changed_when: false
+
+    - name: Extract dots only from log output
+      set_fact:
+        extracted_dots: "{{ log_output.stdout | regex_replace('[^.]', '') }}"
+    
+    - name: Count dots
+      set_fact:
+        dot_count: "{{ extracted_dots | length }}"
+    
+    - name: Check if log contains only dots
+      set_fact:
+        contains_only_dots: "{{ log_output.stdout | regex_search('^[.]+$', multiline=True) is not none }}"
+
+    - name: Prompt: Is IMS SRR disabled?
+      pause:
+        prompt: "Is IMS SRR disabled for {{ inventory_hostname }}? Type 'yes' to continue"
+
+    - name: Prompt: Do you want to enable IMS SRR?
+      pause:
+        prompt: "Turn on IMS SRR for {{ inventory_hostname }}? Type 'yes' to confirm"
+
+    - name: Prompt: Proceed with reboot?
+      pause:
+        prompt: "Proceed with reboot for {{ inventory_hostname }}? Type 'yes' to continue"
+
+    - name: Reboot host (only if all conditions are met)
+      when: contains_only_dots and (dot_count | int >= 7)
+      block:
+        - name: Restart server
+          reboot:
+            msg: "Reboot initiated"
+            pre_reboot_delay: 5
+            post_reboot_delay: 60
+            test_command: uptime
+          become: true
+
+        - name: Show which server was rebooted
+          debug:
+            msg: "Reboot completed for server: {{ inventory_hostname }}"
+
+        - name: Wait for server to come online
+          wait_for_connection:
+            delay: 10
+            timeout: 120
+
+
+
+
+
+
+
+
+
+pipeline {
     agent any
 
     environment {
-        ANSIBLE_INVENTORY = 'inventory.ini' 
-        ANSIBLE_USER = 'root' 
-        ANSIBLE_PASSWORD = 'welcome@123' 
+        ANSIBLE_INVENTORY = 'inventory.ini'
+        ANSIBLE_USER = 'root'
+        ANSIBLE_PASSWORD = 'welcome@123'
         PATH = "/opt/homebrew/bin:${env.PATH}"
     }
 
@@ -39,41 +148,72 @@
             }
         }
 
-        stage('Validate & Reboot 01 Hosts') {
+        stage('Validate 01 Hosts') {
             steps {
-                input message: 'Proceed with Validation and Reboot of 01 Hosts?', ok: 'Yes'
+                input message: 'Proceed with Validation of 01 Hosts?', ok: 'Yes'
                 script {
-                    def exitCode = sh(script: 'ansible-playbook -i ${ANSIBLE_INVENTORY} 01servers0704.yaml --extra-vars "ansible_user=${ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD}"', returnStatus: true)
+                    // Run validation playbook and save facts to a file
+                    def exitCode = sh(script: 'ansible-playbook -i ${ANSIBLE_INVENTORY} 01validate0704.yaml --extra-vars "ansible_user=${ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD}" --fact-caching jsonfile --fact-caching-timeout 3600', returnStatus: true)
                     if (exitCode != 0) {
-                        error "Validation/Reboot of 01 Hosts failed! Check logs."
+                        error "Validation of 01 Hosts failed! Check logs."
                     }
                 }
             }
         }
 
-        stage('Validate & Reboot 02 Hosts') {
+        stage('Reboot 01 Hosts') {
             steps {
-                input message: 'Proceed with Validation and Reboot of 02 Hosts?', ok: 'Yes'
+                input message: 'Proceed with Reboot of 01 Hosts?', ok: 'Yes'
                 script {
-                    def exitCode = sh(script: 'ansible-playbook -i ${ANSIBLE_INVENTORY} 02servers0704.yaml --extra-vars "ansible_user=${ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD}"', returnStatus: true)
+                    // Ask for IMS SRR status and pass it along with cached facts
+                    def imsSrrInput = input(
+                        id: 'imsSrrApproval', 
+                        message: 'Is IMS SRR disabled for 01 Hosts?', 
+                        parameters: [choice(name: 'IMS_SRR', choices: ['yes', 'no'], description: 'Select yes or no')]
+                    )
+                    def imsSrrDisabled = imsSrrInput == 'yes' ? 'true' : 'false'
+                    
+                    def exitCode = sh(script: 'ansible-playbook -i ${ANSIBLE_INVENTORY} 01reboot0704.yaml --extra-vars "ansible_user=${ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD} ims_srr_disabled=${imsSrrDisabled}" --fact-caching jsonfile', returnStatus: true)
                     if (exitCode != 0) {
-                        error "Validation/Reboot of 02 Hosts failed! Check logs."
+                        error "Reboot of 01 Hosts failed! Check logs."
                     }
                 }
             }
         }
 
-        stage('Validate & Reboot 03 Hosts') {
+        // Add similar stages for 02 and 03 hosts if needed
+        stage('Validate 02 Hosts') {
             steps {
-                input message: 'Proceed with Validation and Reboot of 03 Hosts?', ok: 'Yes'
+                input message: 'Proceed with Validation of 02 Hosts?', ok: 'Yes'
                 script {
-                    def exitCode = sh(script: 'ansible-playbook -i ${ANSIBLE_INVENTORY} 03servers0704.yaml --extra-vars "ansible_user=${ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD}"', returnStatus: true)
+                    def exitCode = sh(script: 'ansible-playbook -i ${ANSIBLE_INVENTORY} 02validate0704.yaml --extra-vars "ansible_user=${ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD}" --fact-caching jsonfile --fact-caching-timeout 3600', returnStatus: true)
                     if (exitCode != 0) {
-                        error "Validation/Reboot of 03 Hosts failed! Check logs."
+                        error "Validation of 02 Hosts failed! Check logs."
                     }
                 }
             }
         }
+
+        stage('Reboot 02 Hosts') {
+            steps {
+                input message: 'Proceed with Reboot of 02 Hosts?', ok: 'Yes'
+                script {
+                    def imsSrrInput = input(
+                        id: 'imsSrrApproval02', 
+                        message: 'Is IMS SRR disabled for 02 Hosts?', 
+                        parameters: [choice(name: 'IMS_SRR', choices: ['yes', 'no'], description: 'Select yes or no')]
+                    )
+                    def imsSrrDisabled = imsSrrInput == 'yes' ? 'true' : 'false'
+                    
+                    def exitCode = sh(script: 'ansible-playbook -i ${ANSIBLE_INVENTORY} 02reboot0704.yaml --extra-vars "ansible_user=${ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD} ims_srr_disabled=${imsSrrDisabled}" --fact-caching jsonfile', returnStatus: true)
+                    if (exitCode != 0) {
+                        error "Reboot of 02 Hosts failed! Check logs."
+                    }
+                }
+            }
+        }
+
+        // Repeat for 03 hosts as needed
     }
 
     post {
@@ -88,4 +228,3 @@
         }
     }
 }
-
