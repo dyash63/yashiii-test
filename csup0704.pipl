@@ -3,7 +3,7 @@ pipeline {
     agent any
 
     environment {
-        ANSIBLE_INVENTORY = 'inventory.ini'
+        ANSIBLE_INVENTORY = 'inventory.yaml'
         ANSIBLE_USER = 'root'
         ANSIBLE_PASSWORD = 'welcome@123'
         PATH = "/opt/homebrew/bin:${env.PATH}"
