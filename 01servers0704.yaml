@@ -8,8 +8,6 @@
         groups: "ending_{{ item[-2:] }}"
       loop: "{{ play_hosts }}"
 
----
-
 - name: Validate and reboot ending_01 servers
   hosts: ending_01
   gather_facts: false
