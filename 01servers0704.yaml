@@ -42,18 +42,13 @@
       debug:
         msg: "Contains only dots: {{ contains_only_dots }}"
 
-    - name: Pause and prompt user before reboot
+    - name: Optional pause before reboot
       pause:
-        minutes: 1  # Optional timeout; remove if only waiting for input
-        prompt: "Is IMS SRR disabled? (yes/no)"
-      register: prompt_response
-
-    - name: Set fact based on prompt response
-      set_fact:
-        ims_srr_disabled: "{{ prompt_response.user_input | lower == 'yes' }}"
+        minutes: 1  # Optional delay; remove if not needed
+      when: ims_srr_disabled is defined  # Only pause if the variable is provided
 
     - name: Reboot server if conditions are met
-      when: contains_only_dots and (dot_count | int >= 7) and ims_srr_disabled
+      when: contains_only_dots and (dot_count | int >= 7) and (ims_srr_disabled | default(false))
       block:
         - name: Reboot the server
           reboot:
@@ -68,4 +63,4 @@
     - name: Output if reboot is skipped
       debug:
         msg: "Server {{ inventory_hostname }} skipped reboot due to invalid log output, insufficient dots, or IMS SRR not disabled."
-      when: not contains_only_dots or (dot_count | int < 7) or not ims_srr_disabled
+      when: not contains_only_dots or (dot_count | int < 7) or not (ims_srr_disabled | default(false))
