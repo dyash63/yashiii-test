@@ -1,4 +1,4 @@
-- name: Reboot RHEL Servers (Ending with 01)
+- name: Group servers by ending digits
   hosts: all
   gather_facts: no
   tasks:
@@ -7,31 +7,26 @@
         name: "{{ item }}"
         groups: "ending_{{ item[-2:] }}"
       loop: "{{ play_hosts }}"
+      
 
 - name: Reboot RHEL Servers (Ending with 01)
   hosts: ending_01
   gather_facts: no
   serial: 15
   tasks:
-    - name: Optional pause before reboot
-      pause:
-        minutes: 1
-      when: ims_srr_disabled is defined
+    - name: Reboot the server
+      reboot:
+        msg: "Reboot initiated"
+        pre_reboot_delay: 5
+        post_reboot_delay: 60
+        test_command: uptime
+      become: true
 
-    - name: Reboot server if IMS SRR is disabled
-      when: ims_srr_disabled | default(false)
-      block:
-        - name: Reboot the server
-          reboot:
-            reboot_timeout: 600
-            post_reboot_delay: 60
-          become: true
-
-        - name: Display reboot completion message
-          debug:
-            msg: "{{ inventory_hostname }} - Server rebooted successfully."
-
-    - name: Output if reboot is skipped
+    - name: Display reboot completion message
       debug:
-        msg: "Server {{ inventory_hostname }} skipped reboot because IMS SRR is not disabled."
-      when: not (ims_srr_disabled | default(false))
+        msg: "{{ inventory_hostname }} - Server rebooted successfully."
+
+    - name: Wait for server to come online
+      wait_for_connection:
+        delay: 10
+        timeout: 120
