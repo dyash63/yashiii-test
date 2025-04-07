@@ -8,8 +8,6 @@
         groups: "ending_{{ item[-2:] }}"
       loop: "{{ play_hosts }}"
 
----
-
 - name: Validate log status for servers ending with 01
   hosts: ending_01
   gather_facts: no
