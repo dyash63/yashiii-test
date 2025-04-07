@@ -8,7 +8,7 @@
         groups: "ending_{{ item[-2:] }}"
       loop: "{{ play_hosts }}"
 
-- name: Reboot RHEL Servers (Ending with 01)
+- name: Validate RHEL Servers (Ending with 01)
   hosts: ending_01
   gather_facts: no
   serial: 15
@@ -17,7 +17,7 @@
       shell: >
         tail -f `ls -1t /var/log/cloudstor_manager/manager* | head -1` 
         | awk '/No new jobs found.../{printf "."};!/No new/{print $0; exit 1}' 
-        | timeout 30 tr -d '\n'  # Remove newlines for counting dots
+        | timeout 30 tr -d '\n'
       register: log_output
       failed_when: false
       changed_when: false
@@ -34,6 +34,10 @@
       set_fact:
         dot_count: "{{ extracted_dots | length }}"
 
+    - name: Debug dot count
+      debug:
+        msg: "Dot count: {{ dot_count }}"
+
     - name: Check if log contains only dots
       set_fact:
         contains_only_dots: "{{ log_output.stdout | regex_search('^[.]+$', multiline=True) is not none }}"
@@ -41,26 +45,3 @@
     - name: Display log validation status
       debug:
         msg: "Contains only dots: {{ contains_only_dots }}"
-
-    - name: Optional pause before reboot
-      pause:
-        minutes: 1  # Optional delay; remove if not needed
-      when: ims_srr_disabled is defined  # Only pause if the variable is provided
-
-    - name: Reboot server if conditions are met
-      when: contains_only_dots and (dot_count | int >= 7) and (ims_srr_disabled | default(false))
-      block:
-        - name: Reboot the server
-          reboot:
-            reboot_timeout: 600  # Wait up to 10 minutes for reboot
-            post_reboot_delay: 60  # Wait 60 seconds after reboot before checking
-          become: true
-
-        - name: Display reboot completion message
-          debug:
-            msg: "{{ inventory_hostname }} - Server rebooted successfully."
-
-    - name: Output if reboot is skipped
-      debug:
-        msg: "Server {{ inventory_hostname }} skipped reboot due to invalid log output, insufficient dots, or IMS SRR not disabled."
-      when: not contains_only_dots or (dot_count | int < 7) or not (ims_srr_disabled | default(false))
