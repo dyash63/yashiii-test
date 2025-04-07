@@ -1,0 +1,27 @@
+- name: Reboot RHEL Servers (Ending with 01)
+  hosts: ending_01
+  gather_facts: no
+  serial: 15
+  tasks:
+    - name: Optional pause before reboot
+      pause:
+        minutes: 1
+      when: ims_srr_disabled is defined
+
+    - name: Reboot server if conditions are met
+      when: contains_only_dots and (dot_count | int >= 7) and (ims_srr_disabled | default(false))
+      block:
+        - name: Reboot the server
+          reboot:
+            reboot_timeout: 600
+            post_reboot_delay: 60
+          become: true
+
+        - name: Display reboot completion message
+          debug:
+            msg: "{{ inventory_hostname }} - Server rebooted successfully."
+
+    - name: Output if reboot is skipped
+      debug:
+        msg: "Server {{ inventory_hostname }} skipped reboot due to invalid log output, insufficient dots, or IMS SRR not disabled."
+      when: not contains_only_dots or (dot_count | int < 7) or not (ims_srr_disabled | default(false))
