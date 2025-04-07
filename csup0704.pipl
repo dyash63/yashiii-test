@@ -77,7 +77,7 @@ pipeline {
             steps {
                 input message: 'Proceed with Validation of 02 Hosts?', ok: 'Yes'
                 script {
-                    def exitCode = sh(script: 'ansible-playbook -i ${ANSIBLE_INVENTORY} 02validate0704.yaml  --extra-vars "ansible_user=${ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD}"', returnStatus: true)
+                    def exitCode = sh(script: 'ansible-playbook -i ${ANSIBLE_INVENTORY} 02servers0704.yaml  --extra-vars "ansible_user=${ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD}"', returnStatus: true)
                     if (exitCode != 0) {
                         error "Validation of 02 Hosts failed! Check logs."
                     }
@@ -109,7 +109,7 @@ pipeline {
             steps {
                 input message: 'Proceed with Validation of 03 Hosts?', ok: 'Yes'
                 script {
-                    def exitCode = sh(script: 'ansible-playbook -i ${ANSIBLE_INVENTORY} 03validate0704.yaml --extra-vars "ansible_user=${ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD}"', returnStatus: true)
+                    def exitCode = sh(script: 'ansible-playbook -i ${ANSIBLE_INVENTORY} 03servers0704.yaml --extra-vars "ansible_user=${ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD}"', returnStatus: true)
                     if (exitCode != 0) {
                         error "Validation of 03 Hosts failed! Check logs."
                     }
