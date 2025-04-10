@@ -56,7 +56,7 @@ pipeline {
                     ansible-playbook \
                         -i inventory.yaml \
                         zabhapreboot.yaml \
-                        --extra-vars "ansible_user=${ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD} target_group=ending_03 host_filter=zabhap.*03 wait_for_host=zabhap.*03"
+                        --extra-vars "ansible_user=${ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD} target_group=ending_03 host_filter=zabhap.*03 wait_for_host=zabhapind1303"
                 '''
             }
         }
