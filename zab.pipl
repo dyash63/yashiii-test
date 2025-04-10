@@ -44,38 +44,23 @@ pipeline {
                 // Prompt for Zabhap04 reboot
                 input message: 'Proceed with reboot of Zabhap04 host?', ok: 'Yes'
                 
-                withPythonEnv('python3') {
-                    withCredentials([usernamePassword(credentialsId: 'ANSIBLE_SUDO_PASS_PSW', usernameVariable: 'SUDO_USER', passwordVariable: 'SUDO_PASS')]) {
-                        ansiblePlaybook([
-                            playbook: 'zabhapreboot.yaml',
-                            credentialsId: 'ANSIBLE_SUDO_PASS_PSW',
-                            inventory: 'config/cloudstore_inventory.yaml',
-                            extraVars: [
-                                slack_token: env.SLACK_TOKEN,
-                                ansible_sudo_pass: SUDO_PASS,
-                                target_group: 'ending_04',          // Target hosts ending in 04
-                                host_filter: 'zabhap.*04'           // Regex filter for zabhap hosts ending in 04
-                            ]
-                        ])
-                    }
+                withCredentials([usernamePassword(credentialsId: 'ANSIBLE_SUDO_PASS_PSW', usernameVariable: 'SUDO_USER', passwordVariable: 'SUDO_PASS')]) {
+                    sh '''
+                        python3 -m ansible playbook \
+                            -i inventory.yaml \
+                            zabhapreboot.yaml \
+                            --extra-vars "slack_token=${SLACK_TOKEN} ansible_sudo_pass=${SUDO_PASS} target_group=ending_04 host_filter=zabhap.*04"
+                    '''
                 }
 
                 // Wait for Zabhap03 to be up and prompt for its reboot
-                withPythonEnv('python3') {
-                    withCredentials([usernamePassword(credentialsId: 'ANSIBLE_SUDO_PASS_PSW', usernameVariable: 'SUDO_USER', passwordVariable: 'SUDO_PASS')]) {
-                        ansiblePlaybook([
-                            playbook: 'zabhapreboot.yaml',
-                            credentialsId: 'ANSIBLE_SUDO_PASS_PSW',
-                            inventory: 'config/cloudstore_inventory.yaml',
-                            extraVars: [
-                                slack_token: env.SLACK_TOKEN,
-                                ansible_sudo_pass: SUDO_PASS,
-                                target_group: 'ending_03',          // Target hosts ending in 03
-                                host_filter: 'zabhap.*03',          // Regex filter for zabhap hosts ending in 03
-                                wait_for_host: 'zabhap.*03'         // Wait for Zabhap03 specifically (regex match)
-                            ]
-                        ])
-                    }
+                withCredentials([usernamePassword(credentialsId: 'ANSIBLE_SUDO_PASS_PSW', usernameVariable: 'SUDO_USER', passwordVariable: 'SUDO_PASS')]) {
+                    sh '''
+                        python3 -m ansible playbook \
+                            -i inventory.yaml \
+                            zabhapreboot.yaml \
+                            --extra-vars "slack_token=${SLACK_TOKEN} ansible_sudo_pass=${SUDO_PASS} target_group=ending_03 host_filter=zabhap.*03 wait_for_host=zabhap.*03"
+                    '''
                 }
             }
         }
