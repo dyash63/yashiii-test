@@ -1,8 +1,18 @@
-- name: Reboot RHEL Servers
-  hosts: "{{ host_filter | default('zabhap.*04') }}"
+- name: Filter and reboot RHEL Servers
+  hosts: local_vms
   gather_facts: no
   serial: 1
   tasks:
+    - name: Filter hosts based on host_filter
+      set_fact:
+        filtered_hosts: "{{ ansible_play_hosts | select('match', host_filter | default('zabhap.*04')) | list }}"
+      run_once: true
+
+    - name: Debug filtered hosts
+      debug:
+        msg: "Filtered hosts: {{ filtered_hosts }}"
+      run_once: true
+
     - name: Reboot the server
       reboot:
         msg: "Reboot initiated for {{ inventory_hostname }}"
@@ -10,19 +20,23 @@
         post_reboot_delay: 60
         test_command: uptime
       become: true
+      when: inventory_hostname in filtered_hosts
 
     - name: Show which server was rebooted
       debug:
         msg: "Reboot completed for server: {{ inventory_hostname }}"
+      when: inventory_hostname in filtered_hosts
 
     - name: Wait for server to come online
       wait_for_connection:
         delay: 10
         timeout: 120
+      when: inventory_hostname in filtered_hosts
 
     - name: Display reboot completion message
       debug:
         msg: "{{ inventory_hostname }} - Server rebooted successfully."
+      when: inventory_hostname in filtered_hosts
 
     - name: Check status of rsyslog service
       service:
@@ -30,6 +44,7 @@
         state: started
       register: service_status
       become: true
+      when: inventory_hostname in filtered_hosts
 
     - name: Wait for specified host to come online (if applicable)
       wait_for_connection:
@@ -39,6 +54,7 @@
       when: 
         - wait_for_host is defined
         - wait_for_host != inventory_hostname
+        - inventory_hostname in filtered_hosts
       delegate_to: localhost
 
     - name: Notify specified host is up (if applicable)
@@ -47,3 +63,4 @@
       when: 
         - wait_for_host is defined
         - wait_for_host != inventory_hostname
+        - inventory_hostname in filtered_hosts
