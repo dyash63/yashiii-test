@@ -1,8 +1,8 @@
-- name: Reboot specific host
-  hosts: "{{ target_host }}"
+- name: Reboot specific HAP host
+  hosts: all
   gather_facts: no
   tasks:
-    - name: Reboot the server
+    - name: Reboot the host
       reboot:
         msg: "Reboot initiated"
         pre_reboot_delay: 5
@@ -10,13 +10,13 @@
         test_command: uptime
       become: true
 
-    - name: Wait for server to come online 
+    - name: Wait for connection
       wait_for_connection:
         delay: 10
         timeout: 120
 
-    - name: Display reboot completion message
+    - name: Confirm reboot success
       debug:
-        msg: "{{ inventory_hostname }} - Server rebooted successfully."
+        msg: "{{ inventory_hostname }} rebooted successfully."
 
 
