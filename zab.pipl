@@ -31,7 +31,7 @@ pipeline {
         stage('Patch All Hosts') {
             steps {
                 script {
-                    def exitCode = sh(script: 'ansible-playbook -i ${ANSIBLE_INVENTORY} capatchup0704.yaml --extra-vars "ansible_user=${ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD}"', returnStatus: true)
+                    def exitCode = sh(script: 'ansible-playbook -i ${ANSIBLE_INVENTORY} patch.yaml --extra-vars "ansible_user=${ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD}"', returnStatus: true)
                     if (exitCode != 0) {
                         error "Patching failed! Check logs."
                     }
@@ -47,7 +47,7 @@ pipeline {
                 sh '''
                     python3 -m ansible playbook \
                         -i config/cloudstore_inventory.yaml \
-                        cloudstore_reboot.yaml \
+                        zabhapreboot.yaml \
                         --extra-vars "ansible_user=${ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD} target_group=ending_04 host_filter=zabhap.*04"
                 '''
 
@@ -55,7 +55,7 @@ pipeline {
                 sh '''
                     python3 -m ansible playbook \
                         -i config/cloudstore_inventory.yaml \
-                        cloudstore_reboot.yaml \
+                        zabhapreboot.yaml \
                         --extra-vars "ansible_user=${ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD} target_group=ending_03 host_filter=zabhap.*03 wait_for_host=zabhap.*03"
                 '''
             }
