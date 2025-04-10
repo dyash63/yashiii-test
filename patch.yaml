@@ -4,7 +4,7 @@
   tasks:
   
   - name: Apply security updates
-    shell: yum update --security -y
+    shell: yum update -y
     register: YUM_OUT
     async: 3600
     poll: 60
