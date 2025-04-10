@@ -46,7 +46,7 @@ pipeline {
                 
                 sh '''
                     ansible-playbook \
-                        -i config/cloudstore_inventory.yaml \
+                        -i inventory.yaml \
                         zabhapreboot.yaml \
                         --extra-vars "ansible_user=${ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD} target_group=ending_04 host_filter=zabhap.*04"
                 '''
@@ -54,7 +54,7 @@ pipeline {
                 // Wait for Zabhap03 to be up and prompt for its reboot
                 sh '''
                     ansible-playbook \
-                        -i config/cloudstore_inventory.yaml \
+                        -i inventory.yaml \
                         zabhapreboot.yaml \
                         --extra-vars "ansible_user=${ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD} target_group=ending_03 host_filter=zabhap.*03 wait_for_host=zabhap.*03"
                 '''
