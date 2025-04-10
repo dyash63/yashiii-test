@@ -1,0 +1,49 @@
+- name: Reboot RHEL Servers
+  hosts: "{{ host_filter | default('zabhap.*04') }}"
+  gather_facts: no
+  serial: 1
+  tasks:
+    - name: Reboot the server
+      reboot:
+        msg: "Reboot initiated for {{ inventory_hostname }}"
+        pre_reboot_delay: 5
+        post_reboot_delay: 60
+        test_command: uptime
+      become: true
+
+    - name: Show which server was rebooted
+      debug:
+        msg: "Reboot completed for server: {{ inventory_hostname }}"
+
+    - name: Wait for server to come online
+      wait_for_connection:
+        delay: 10
+        timeout: 120
+
+    - name: Display reboot completion message
+      debug:
+        msg: "{{ inventory_hostname }} - Server rebooted successfully."
+
+    - name: Check status of rsyslog service
+      service:
+        name: rsyslog
+        state: started
+      register: service_status
+      become: true
+
+    - name: Wait for specified host to come online (if applicable)
+      wait_for_connection:
+        host: "{{ wait_for_host | default('') }}"
+        delay: 10
+        timeout: 300
+      when: 
+        - wait_for_host is defined
+        - wait_for_host != inventory_hostname
+      delegate_to: localhost
+
+    - name: Notify specified host is up (if applicable)
+      debug:
+        msg: "{{ wait_for_host }} is now online and ready for reboot."
+      when: 
+        - wait_for_host is defined
+        - wait_for_host != inventory_hostname
