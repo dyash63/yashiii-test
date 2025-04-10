@@ -1,0 +1,31 @@
+---
+- name: Apply security updates
+  hosts: all
+  tasks:
+  
+  - name: Apply security updates
+    shell: yum update --security -y
+    register: YUM_OUT
+    async: 3600
+    poll: 60
+    become: true
+    vars:
+      ansible_ssh_common_args: "-o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no"
+
+  - debug: var=YUM_OUT.stdout_lines
+
+  - name: Install prereqs
+    yum:
+      name: yum-utils
+      state: installed
+    become: true
+
+  - name: Check if we need to restart
+    shell: /usr/bin/needs-restarting -r | grep -i reboot
+    check_mode: no
+    register: needs_restarting_out
+    failed_when: ( needs_restarting_out.rc not in [ 0, 1 ] )
+    changed_when: False
+    become: true
+
+  - debug: var=needs_restarting_out.stdout_lines
