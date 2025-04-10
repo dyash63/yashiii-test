@@ -31,7 +31,7 @@ pipeline {
         stage('Patch All Hosts') {
             steps {
                 script {
-                    def exitCode = sh(script: 'ansible-playbook -i ${ANSIBLE_INVENTORY} patch.yaml --extra-vars "ansible_user=${ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD}"', returnStatus: true)
+                    def exitCode = sh(script: 'ansible-playbook -i ${ANSIBLE_INVENTORY} capatchup0704.yaml --extra-vars "ansible_user=${ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD}"', returnStatus: true)
                     if (exitCode != 0) {
                         error "Patching failed! Check logs."
                     }
@@ -44,24 +44,20 @@ pipeline {
                 // Prompt for Zabhap04 reboot
                 input message: 'Proceed with reboot of Zabhap04 host?', ok: 'Yes'
                 
-                withCredentials([usernamePassword(credentialsId: 'ANSIBLE_SUDO_PASS_PSW', usernameVariable: 'SUDO_USER', passwordVariable: 'SUDO_PASS')]) {
-                    sh '''
-                        python3 -m ansible playbook \
-                            -i inventory.yaml \
-                            zabhapreboot.yaml \
-                            --extra-vars "slack_token=${SLACK_TOKEN} ansible_sudo_pass=${SUDO_PASS} target_group=ending_04 host_filter=zabhap.*04"
-                    '''
-                }
+                sh '''
+                    python3 -m ansible playbook \
+                        -i config/cloudstore_inventory.yaml \
+                        cloudstore_reboot.yaml \
+                        --extra-vars "ansible_user=${ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD} target_group=ending_04 host_filter=zabhap.*04"
+                '''
 
                 // Wait for Zabhap03 to be up and prompt for its reboot
-                withCredentials([usernamePassword(credentialsId: 'ANSIBLE_SUDO_PASS_PSW', usernameVariable: 'SUDO_USER', passwordVariable: 'SUDO_PASS')]) {
-                    sh '''
-                        python3 -m ansible playbook \
-                            -i inventory.yaml \
-                            zabhapreboot.yaml \
-                            --extra-vars "slack_token=${SLACK_TOKEN} ansible_sudo_pass=${SUDO_PASS} target_group=ending_03 host_filter=zabhap.*03 wait_for_host=zabhap.*03"
-                    '''
-                }
+                sh '''
+                    python3 -m ansible playbook \
+                        -i config/cloudstore_inventory.yaml \
+                        cloudstore_reboot.yaml \
+                        --extra-vars "ansible_user=${ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD} target_group=ending_03 host_filter=zabhap.*03 wait_for_host=zabhap.*03"
+                '''
             }
         }
     }
