@@ -38,14 +38,6 @@
         msg: "{{ inventory_hostname }} - Server rebooted successfully."
       when: inventory_hostname in filtered_hosts
 
-    - name: Check status of rsyslog service
-      service:
-        name: rsyslog
-        state: started
-      register: service_status
-      become: true
-      when: inventory_hostname in filtered_hosts
-
     - name: Wait for specified host to come online (if applicable)
       wait_for_connection:
         host: "{{ wait_for_host | default('') }}"
