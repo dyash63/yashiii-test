@@ -47,7 +47,7 @@ pipeline {
                 withPythonEnv('python3') {
                     withCredentials([usernamePassword(credentialsId: 'ANSIBLE_SUDO_PASS_PSW', usernameVariable: 'SUDO_USER', passwordVariable: 'SUDO_PASS')]) {
                         ansiblePlaybook([
-                            playbook: 'cloudstore_reboot.yaml',
+                            playbook: 'zabhapreboot.yaml',
                             credentialsId: 'ANSIBLE_SUDO_PASS_PSW',
                             inventory: 'config/cloudstore_inventory.yaml',
                             extraVars: [
@@ -64,7 +64,7 @@ pipeline {
                 withPythonEnv('python3') {
                     withCredentials([usernamePassword(credentialsId: 'ANSIBLE_SUDO_PASS_PSW', usernameVariable: 'SUDO_USER', passwordVariable: 'SUDO_PASS')]) {
                         ansiblePlaybook([
-                            playbook: 'cloudstore_reboot.yaml',
+                            playbook: 'zabhapreboot.yaml',
                             credentialsId: 'ANSIBLE_SUDO_PASS_PSW',
                             inventory: 'config/cloudstore_inventory.yaml',
                             extraVars: [
