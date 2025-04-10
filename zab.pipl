@@ -19,8 +19,12 @@ pipeline {
             steps {
                 sh '''
                     if ! command -v ansible &> /dev/null; then
-                        echo "Ansible is not installed. Installing..."
+                        echo "Installing Ansible..."
                         brew install ansible
+                    fi
+                    if ! command -v yq &> /dev/null; then
+                        echo "Installing yq..."
+                        brew install yq
                     fi
                     ansible --version
                     ansible-galaxy collection install community.general
@@ -31,32 +35,31 @@ pipeline {
         stage('Reboot HAP Hosts One by One') {
             steps {
                 script {
-                    // Read the inventory
-                    def inventory = readYaml file: "${ANSIBLE_INVENTORY}"
-                    def hostMap = inventory['all']['children']['HAP']['hosts']
-                    def hostList = hostMap.keySet() as List
+                    // Get list of HAP hostnames using yq
+                    def rawHosts = sh(script: "yq eval '.all.children.HAP.hosts | keys | .[]' ${env.ANSIBLE_INVENTORY}", returnStdout: true).trim()
+                    def hosts = rawHosts.tokenize('\n')
 
-                    for (host in hostList) {
-                        def userChoice = input(
-                            id: "reboot_${host}",
-                            message: "Do you want to reboot ${host} (${hostMap[host].ansible_host})?",
-                            parameters: [choice(name: 'Proceed', choices: ['yes', 'no'], description: "Reboot ${host}?")]
+                    for (host in hosts) {
+                        def proceed = input(
+                            id: "reboot-${host}",
+                            message: "Do you want to reboot host: ${host}?",
+                            ok: "Reboot ${host}",
+                            parameters: [
+                                choice(name: 'IMS_SRR', choices: ['yes', 'no'], description: "Is IMS SRR disabled for ${host}?")
+                            ]
                         )
 
-                        if (userChoice == 'yes') {
-                            echo "Rebooting ${host}..."
-                            def exitCode = sh(
-                                script: """
-                                    ansible-playbook -i ${ANSIBLE_INVENTORY} zabhapreboot.yaml \
-                                    --extra-vars "ansible_user=${ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD} target_host=${host}"
-                                """,
-                                returnStatus: true
-                            )
-                            if (exitCode != 0) {
-                                error "Reboot of ${host} failed! Check logs."
-                            }
-                        } else {
-                            echo "Skipping ${host}"
+                        def imsSrrDisabled = proceed == 'yes' ? 'true' : 'false'
+
+                        echo "Rebooting host: ${host} (ims_srr_disabled=${imsSrrDisabled})"
+
+                        def exitCode = sh(
+                            script: "ansible-playbook -i ${env.ANSIBLE_INVENTORY} zabhapreboot.yaml --limit ${host} --extra-vars \"ansible_user=${env.ANSIBLE_USER} ansible_password=${env.ANSIBLE_PASSWORD} ims_srr_disabled=${imsSrrDisabled}\"",
+                            returnStatus: true
+                        )
+
+                        if (exitCode != 0) {
+                            error "Reboot of ${host} failed! Check logs."
                         }
                     }
                 }
@@ -66,7 +69,7 @@ pipeline {
 
     post {
         success {
-            echo "All selected reboots completed successfully."
+            echo "All reboots completed successfully."
         }
         failure {
             echo "One or more reboots failed. Check logs."
