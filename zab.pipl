@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        ANSIBLE_INVENTORY = 'reboot-pipeline/inventory/production.yml'
+        ANSIBLE_INVENTORY = 'inventory.yml'
         ANSIBLE_USER = 'root'
         ANSIBLE_PASSWORD = 'welcome@123'
         PATH = "/opt/homebrew/bin:${env.PATH}"
