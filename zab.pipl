@@ -82,91 +82,79 @@ pipeline {
                         error "No DB hosts found in inventory."
                     }
 
-                    echo "DB Hosts: ${dbHosts}"
-                    env.DB_SERVERS = dbHosts.join(',')
-                    env.CHECK_HOST = dbHosts[0]
+                    echo "Discovered DB Hosts: ${dbHosts}"
+                    env.DB_HOSTS = dbHosts.join(',')
                 }
             }
         }
 
-        stage('Check Initial Patroni Status') {
+        stage('Prompt to Reboot First DB Server') {
             steps {
                 script {
+                    def dbHosts = env.DB_HOSTS.split(',')
+
+                    def selectedHost = input(
+                        message: "Select the first DB host to reboot (avoid the Patroni leader):",
+                        parameters: [
+                            choice(name: 'SERVER', choices: dbHosts, description: 'Choose a DB server to reboot first')
+                        ]
+                    )
+                    env.FIRST_DB = selectedHost
+
+                    echo "Rebooting: ${env.FIRST_DB}"
+                    def result = sh(
+                        script: "ansible-playbook -i ${env.ANSIBLE_INVENTORY} zabhapreboot.yaml --extra-vars \"ansible_user=${env.ANSIBLE_USER} ansible_password=${env.ANSIBLE_PASSWORD} target_host=${env.FIRST_DB}\"",
+                        returnStatus: true
+                    )
+                    if (result != 0) {
+                        error "Reboot of DB server ${env.FIRST_DB} failed!"
+                    }
+                }
+            }
+        }
+
+        stage('Wait and Check Patroni Status') {
+            steps {
+                script {
+                    echo "⏳ Waiting 5 minutes for stabilization..."
+                    sleep(time: 5, unit: 'MINUTES')
+
+                    def dbHosts = env.DB_HOSTS.split(',')
+                    def checkHost = dbHosts.find { it != env.FIRST_DB }
+
+                    echo "Checking Patroni status on: ${checkHost}"
                     def statusCheck = sh(
-                        script: "ansible-playbook -i ${env.ANSIBLE_INVENTORY} check_patroni.yml --extra-vars \"ansible_user=${env.ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD} target_host=${env.CHECK_HOST}\"",
+                        script: "ansible-playbook -i ${env.ANSIBLE_INVENTORY} check_patroni.yml --extra-vars \"ansible_user=${env.ANSIBLE_USER} ansible_password=${env.ANSIBLE_PASSWORD} target_host=${checkHost}\"",
                         returnStatus: true
                     )
                     if (statusCheck != 0) {
-                        error "Failed to check Patroni cluster status!"
+                        error "Patroni status check failed on ${checkHost}"
                     }
+                    env.SECOND_DB = checkHost
                 }
             }
         }
 
-        stage('Reboot First DB Server') {
+        stage('Prompt to Reboot Second DB Server') {
             steps {
                 script {
-                    def dbHosts = env.DB_SERVERS.split(',')
-                    def firstChoice = input(
-                        id: 'choose-first-db',
-                        message: 'Select the first DB server to reboot (avoid leader):',
+                    def confirm = input(
+                        message: "Ready to reboot second DB server (${env.SECOND_DB})?",
                         parameters: [
-                            choice(name: 'SERVER', choices: dbHosts, description: 'Select DB host to reboot')
+                            booleanParam(defaultValue: true, description: "Reboot ${env.SECOND_DB} now?", name: 'proceed')
                         ]
                     )
-                    env.FIRST_SERVER = firstChoice
-
-                    def result = sh(
-                        script: "ansible-playbook -i ${env.ANSIBLE_INVENTORY} zabhapreboot.yaml --extra-vars \"ansible_user=${env.ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD} target_host=${env.FIRST_SERVER}\"",
-                        returnStatus: true
-                    )
-                    if (result != 0) {
-                        error "Reboot of DB server ${env.FIRST_SERVER} failed!"
-                    }
-                }
-            }
-        }
-
-        stage('Wait Before Rebooting Second DB Server') {
-            steps {
-                echo "Waiting 5 minutes for DB stabilization..."
-                sleep(time: 5, unit: 'MINUTES')
-            }
-        }
-
-        stage('Check Patroni Status After First Reboot') {
-            steps {
-                script {
-                    def result = sh(
-                        script: "ansible-playbook -i ${env.ANSIBLE_INVENTORY} check_patroni.yml --extra-vars \"ansible_user=${env.ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD} target_host=${env.CHECK_HOST}\"",
-                        returnStatus: true
-                    )
-                    if (result != 0) {
-                        error "Patroni check failed after first DB reboot!"
-                    }
-                }
-            }
-        }
-
-        stage('Reboot Second DB Server') {
-            steps {
-                script {
-                    def dbHosts = env.DB_SERVERS.split(',')
-                    def secondChoice = input(
-                        id: 'choose-second-db',
-                        message: 'Select the second DB server to reboot:',
-                        parameters: [
-                            choice(name: 'SERVER', choices: dbHosts, description: 'Select second DB host')
-                        ]
-                    )
-                    env.SECOND_SERVER = secondChoice
-
-                    def result = sh(
-                        script: "ansible-playbook -i ${env.ANSIBLE_INVENTORY} zabhapreboot.yaml --extra-vars \"ansible_user=${env.ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD} target_host=${env.SECOND_SERVER}\"",
-                        returnStatus: true
-                    )
-                    if (result != 0) {
-                        error "Reboot of DB server ${env.SECOND_SERVER} failed!"
+                    if (confirm) {
+                        echo "Rebooting second DB server: ${env.SECOND_DB}"
+                        def result = sh(
+                            script: "ansible-playbook -i ${env.ANSIBLE_INVENTORY} zabhapreboot.yaml --extra-vars \"ansible_user=${env.ANSIBLE_USER} ansible_password=${env.ANSIBLE_PASSWORD} target_host=${env.SECOND_DB}\"",
+                            returnStatus: true
+                        )
+                        if (result != 0) {
+                            error "Reboot of DB server ${env.SECOND_DB} failed!"
+                        }
+                    } else {
+                        echo "Skipping reboot of ${env.SECOND_DB}"
                     }
                 }
             }
