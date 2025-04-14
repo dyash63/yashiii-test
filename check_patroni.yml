@@ -1,1 +1,13 @@
+---
+- name: Check Patroni cluster status
+  hosts: "{{ target_host }}"
+  gather_facts: no
+  tasks:
+    - name: Run patronictl list
+      command: cat /var/log/clutser 
+      register: patroni_status
+      changed_when: false
 
+    - name: Display Patroni cluster status
+      debug:
+        msg: "{{ patroni_status.stdout_lines }}"
