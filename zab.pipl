@@ -41,7 +41,6 @@ pipeline {
                         def userChoice = input(
                             id: "reboot-${host}",
                             message: "Reboot HAP host: ${host}?",
-                            ok: "Reboot",
                             parameters: [
                                 choice(
                                     name: 'Proceed',
@@ -111,7 +110,10 @@ pipeline {
                         id: 'choose-first-db',
                         message: 'Select the first DB server to reboot (avoid leader):',
                         parameters: [
-                            choice(name: 'SERVER', choices: dbHosts, description: 'Select DB host to reboot')
+                            [$class: 'ChoiceParameterDefinition', 
+                             name: 'SERVER', 
+                             choices: dbHosts.join('\n'), 
+                             description: 'Select DB host to reboot']
                         ]
                     )
                     env.FIRST_SERVER = firstChoice
@@ -156,7 +158,10 @@ pipeline {
                         id: 'choose-second-db',
                         message: 'Select the second DB server to reboot:',
                         parameters: [
-                            choice(name: 'SERVER', choices: dbHosts, description: 'Select second DB host')
+                            [$class: 'ChoiceParameterDefinition', 
+                             name: 'SERVER', 
+                             choices: dbHosts.join('\n'), 
+                             description: 'Select second DB host']
                         ]
                     )
                     env.SECOND_SERVER = secondChoice
