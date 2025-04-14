@@ -1,0 +1,195 @@
+pipeline {
+    agent any
+
+    environment {
+        ANSIBLE_INVENTORY = 'inventory.yaml'
+        ANSIBLE_USER = 'root'
+        ANSIBLE_PASSWORD = 'welcome@123'
+        PATH = "/opt/homebrew/bin:${env.PATH}"
+    }
+
+    stages {
+        stage('Checkout Code') {
+            steps {
+                git branch: 'main', url: 'https://github.com/dyash63/yashiii-test.git'
+            }
+        }
+
+        stage('Install Ansible Dependencies') {
+            steps {
+                sh '''
+                    if ! command -v ansible &> /dev/null; then
+                        echo "Ansible is not installed. Installing..."
+                        brew install ansible
+                    fi
+                    ansible --version
+                    ansible-galaxy collection install community.general
+                '''
+            }
+        }
+
+        stage('Patch All Hosts') {
+            steps {
+                script {
+                    def exitCode = sh(script: 'ansible-playbook -i ${ANSIBLE_INVENTORY} capatchup0704.yaml --extra-vars "ansible_user=${ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD}"', returnStatus: true)
+                    if (exitCode != 0) {
+                        error "Patching failed! Check logs."
+                    }
+                }
+            }
+        }
+
+        stage('Validate 01 Hosts') {
+            steps {
+                script {
+                    def skipValidation = input(
+                        message: 'Proceed with Validation of 01 Hosts? (Select "Continue" to proceed, "Skip" to skip)', 
+                        parameters: [choice(name: 'Proceed with Validation?', choices: ['Continue', 'Skip'], description: 'Do you want to proceed with validation of 01 Hosts?')]
+                    )
+
+                    if (skipValidation == 'Continue') {
+                        def exitCode = sh(script: 'ansible-playbook -i ${ANSIBLE_INVENTORY} 01servers0704.yaml --extra-vars "ansible_user=${ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD}"', returnStatus: true)
+                        if (exitCode != 0) {
+                            error "Validation of 01 Hosts failed! Check logs."
+                        }
+                    } else {
+                        echo "Skipping Validation of 01 Hosts."
+                    }
+                }
+            }
+        }
+
+        stage('Reboot 01 Hosts') {
+            steps {
+                script {
+                    def skipReboot = input(
+                        message: 'Proceed with Reboot of 01 Hosts? (Select "Continue" to proceed, "Skip" to skip)', 
+                        parameters: [choice(name: 'Proceed with Reboot?', choices: ['Continue', 'Skip'], description: 'Do you want to proceed with reboot of 01 Hosts?')]
+                    )
+
+                    if (skipReboot == 'Continue') {
+                        def imsSrrInput = input(
+                            id: 'imsSrrApproval', 
+                            message: 'Is IMS SRR disabled for 01 Hosts?', 
+                            parameters: [choice(name: 'IMS_SRR', choices: ['yes', 'no'], description: 'Select yes or no')]
+                        )
+                        def imsSrrDisabled = imsSrrInput == 'yes' ? 'true' : 'false'
+
+                        def exitCode = sh(script: 'ansible-playbook -i ${ANSIBLE_INVENTORY} 01reboot0704.yaml --extra-vars "ansible_user=${ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD} ims_srr_disabled=${imsSrrDisabled}"', returnStatus: true)
+                        if (exitCode != 0) {
+                            error "Reboot of 01 Hosts failed! Check logs."
+                        }
+                    } else {
+                        echo "Skipping Reboot of 01 Hosts."
+                    }
+                }
+            }
+        }
+
+        stage('Validate 02 Hosts') {
+            steps {
+                script {
+                    def skipValidation = input(
+                        message: 'Proceed with Validation of 02 Hosts? (Select "Continue" to proceed, "Skip" to skip)', 
+                        parameters: [choice(name: 'Proceed with Validation?', choices: ['Continue', 'Skip'], description: 'Do you want to proceed with validation of 02 Hosts?')]
+                    )
+
+                    if (skipValidation == 'Continue') {
+                        def exitCode = sh(script: 'ansible-playbook -i ${ANSIBLE_INVENTORY} 02servers0704.yaml --extra-vars "ansible_user=${ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD}"', returnStatus: true)
+                        if (exitCode != 0) {
+                            error "Validation of 02 Hosts failed! Check logs."
+                        }
+                    } else {
+                        echo "Skipping Validation of 02 Hosts."
+                    }
+                }
+            }
+        }
+
+        stage('Reboot 02 Hosts') {
+            steps {
+                script {
+                    def skipReboot = input(
+                        message: 'Proceed with Reboot of 02 Hosts? (Select "Continue" to proceed, "Skip" to skip)', 
+                        parameters: [choice(name: 'Proceed with Reboot?', choices: ['Continue', 'Skip'], description: 'Do you want to proceed with reboot of 02 Hosts?')]
+                    )
+
+                    if (skipReboot == 'Continue') {
+                        def imsSrrInput = input(
+                            id: 'imsSrrApproval02', 
+                            message: 'Is IMS SRR disabled for 02 Hosts?', 
+                            parameters: [choice(name: 'IMS_SRR', choices: ['yes', 'no'], description: 'Select yes or no')]
+                        )
+                        def imsSrrDisabled = imsSrrInput == 'yes' ? 'true' : 'false'
+
+                        def exitCode = sh(script: 'ansible-playbook -i ${ANSIBLE_INVENTORY} 02reboot0704.yaml --extra-vars "ansible_user=${ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD} ims_srr_disabled=${imsSrrDisabled}"', returnStatus: true)
+                        if (exitCode != 0) {
+                            error "Reboot of 02 Hosts failed! Check logs."
+                        }
+                    } else {
+                        echo "Skipping Reboot of 02 Hosts."
+                    }
+                }
+            }
+        }
+
+        stage('Validate 03 Hosts') {
+            steps {
+                script {
+                    def skipValidation = input(
+                        message: 'Proceed with Validation of 03 Hosts? (Select "Continue" to proceed, "Skip" to skip)', 
+                        parameters: [choice(name: 'Proceed with Validation?', choices: ['Continue', 'Skip'], description: 'Do you want to proceed with validation of 03 Hosts?')]
+                    )
+
+                    if (skipValidation == 'Continue') {
+                        def exitCode = sh(script: 'ansible-playbook -i ${ANSIBLE_INVENTORY} 03servers0704.yaml --extra-vars "ansible_user=${ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD}"', returnStatus: true)
+                        if (exitCode != 0) {
+                            error "Validation of 03 Hosts failed! Check logs."
+                        }
+                    } else {
+                        echo "Skipping Validation of 03 Hosts."
+                    }
+                }
+            }
+        }
+
+        stage('Reboot 03 Hosts') {
+            steps {
+                script {
+                    def skipReboot = input(
+                        message: 'Proceed with Reboot of 03 Hosts? (Select "Continue" to proceed, "Skip" to skip)', 
+                        parameters: [choice(name: 'Proceed with Reboot?', choices: ['Continue', 'Skip'], description: 'Do you want to proceed with reboot of 03 Hosts?')]
+                    )
+
+                    if (skipReboot == 'Continue') {
+                        def imsSrrInput = input(
+                            id: 'imsSrrApproval03', 
+                            message: 'Is IMS SRR disabled for 03 Hosts?', 
+                            parameters: [choice(name: 'IMS_SRR', choices: ['yes', 'no'], description: 'Select yes or no')]
+                        )
+                        def imsSrrDisabled = imsSrrInput == 'yes' ? 'true' : 'false'
+
+                        def exitCode = sh(script: 'ansible-playbook -i ${ANSIBLE_INVENTORY} 03reboot0704.yaml --extra-vars "ansible_user=${ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD} ims_srr_disabled=${imsSrrDisabled}"', returnStatus: true)
+                        if (exitCode != 0) {
+                            error "Reboot of 03 Hosts failed! Check logs."
+                        }
+                    } else {
+                        echo "Skipping Reboot of 03 Hosts."
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "Patching and reboots completed successfully."
+        }
+        failure {
+            echo "One or more stages failed. Check logs."
+        }
+        always {
+            archiveArtifacts artifacts: '*.log', allowEmptyArchive: true
+        }
+    }
+}
