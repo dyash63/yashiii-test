@@ -58,7 +58,7 @@ pipeline {
                         echo "Rebooting host: ${host} (hap_reboot=${hapReboot})"
 
                         def exitCode = sh(
-                            script: "ansible-playbook -i ${env.ANSIBLE_INVENTORY} reboot-pipeline/playbooks/zabhapreboot.yaml --limit ${host} --extra-vars \"ansible_user=${env.ANSIBLE_USER} ansible_password=${env.ANSIBLE_PASSWORD} hap_reboot=${hapReboot}\"",
+                            script: "ansible-playbook -i ${env.ANSIBLE_INVENTORY} zabhapreboot.yaml --limit ${host} --extra-vars \"ansible_user=${env.ANSIBLE_USER} ansible_password=${env.ANSIBLE_PASSWORD} hap_reboot=${hapReboot}\"",
                             returnStatus: true
                         )
 
@@ -90,7 +90,7 @@ pipeline {
             steps {
                 script {
                     def exitCode = sh(
-                        script: "ansible-playbook -i ${env.ANSIBLE_INVENTORY} reboot-pipeline/playbooks/check_patroni.yml --extra-vars \"ansible_user=${env.ANSIBLE_USER} ansible_password=${env.ANSIBLE_PASSWORD} target_host=${env.CHECK_HOST}\"",
+                        script: "ansible-playbook -i ${env.ANSIBLE_INVENTORY} check_patroni.yml --extra-vars \"ansible_user=${env.ANSIBLE_USER} ansible_password=${env.ANSIBLE_PASSWORD} target_host=${env.CHECK_HOST}\"",
                         returnStatus: true
                     )
                     if (exitCode != 0) {
@@ -113,7 +113,7 @@ pipeline {
                     )
                     env.FIRST_SERVER = userInput
                     def exitCode = sh(
-                        script: "ansible-playbook -i ${env.ANSIBLE_INVENTORY} reboot-pipeline/playbooks/zabhapreboot.yaml --extra-vars \"ansible_user=${env.ANSIBLE_USER} ansible_password=${env.ANSIBLE_PASSWORD} target_host=${env.FIRST_SERVER}\"",
+                        script: "ansible-playbook -i ${env.ANSIBLE_INVENTORY} zabhapreboot.yaml --extra-vars \"ansible_user=${env.ANSIBLE_USER} ansible_password=${env.ANSIBLE_PASSWORD} target_host=${env.FIRST_SERVER}\"",
                         returnStatus: true
                     )
                     if (exitCode != 0) {
@@ -133,7 +133,7 @@ pipeline {
             steps {
                 script {
                     def exitCode = sh(
-                        script: "ansible-playbook -i ${env.ANSIBLE_INVENTORY} reboot-pipeline/playbooks/check_patroni.yml --extra-vars \"ansible_user=${env.ANSIBLE_USER} ansible_password=${env.ANSIBLE_PASSWORD} target_host=${env.CHECK_HOST}\"",
+                        script: "ansible-playbook -i ${env.ANSIBLE_INVENTORY} check_patroni.yml --extra-vars \"ansible_user=${env.ANSIBLE_USER} ansible_password=${env.ANSIBLE_PASSWORD} target_host=${env.CHECK_HOST}\"",
                         returnStatus: true
                     )
                     if (exitCode != 0) {
@@ -156,7 +156,7 @@ pipeline {
                     )
                     env.SECOND_SERVER = userInput
                     def exitCode = sh(
-                        script: "ansible-playbook -i ${env.ANSIBLE_INVENTORY} reboot-pipeline/playbooks/zabhapreboot.yaml --extra-vars \"ansible_user=${env.ANSIBLE_USER} ansible_password=${env.ANSIBLE_PASSWORD} target_host=${env.SECOND_SERVER}\"",
+                        script: "ansible-playbook -i ${env.ANSIBLE_INVENTORY} zabhapreboot.yaml --extra-vars \"ansible_user=${env.ANSIBLE_USER} ansible_password=${env.ANSIBLE_PASSWORD} target_host=${env.SECOND_SERVER}\"",
                         returnStatus: true
                     )
                     if (exitCode != 0) {
