@@ -6,3 +6,9 @@ all:
           ansible_host: 172.16.151.128
         zabhapind1303:
           ansible_host: 172.16.151.129
+    DB:
+      hosts:
+        zabdbind1303:
+          ansible_host: 172.22.202.60
+        zabdbind1304:
+          ansible_host: 172.22.202.62
