@@ -4,7 +4,7 @@ pipeline {
     environment {
         ANSIBLE_INVENTORY = "inventory.yaml"
         ANSIBLE_USER = 'root'
-        ANSIBLE_PASSWORD = welcome@123
+        ANSIBLE_PASSWORD = 'welcome@123'
         PATH = "/opt/homebrew/bin:${env.PATH}"
     }
 
