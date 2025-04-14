@@ -45,16 +45,20 @@ pipeline {
                             message: "Do you want to reboot host: ${host}?",
                             ok: "Reboot ${host}",
                             parameters: [
-                                choice(name: 'IMS_SRR', choices: ['yes', 'no'], description: "Is IMS SRR disabled for ${host}?")
+                                choice(
+                                    name: 'HAP Reboot',
+                                    choices: ['yes', 'no'],
+                                    description: "Proceed with HAP reboot for ${host}?"
+                                )
                             ]
                         )
 
-                        def imsSrrDisabled = proceed == 'yes' ? 'true' : 'false'
+                        def hapReboot = proceed == 'yes' ? 'true' : 'false'
 
-                        echo "Rebooting host: ${host} (ims_srr_disabled=${imsSrrDisabled})"
+                        echo "Rebooting host: ${host} (hap_reboot=${hapReboot})"
 
                         def exitCode = sh(
-                            script: "ansible-playbook -i ${env.ANSIBLE_INVENTORY} zabhapreboot.yaml --limit ${host} --extra-vars \"ansible_user=${env.ANSIBLE_USER} ansible_password=${env.ANSIBLE_PASSWORD} ims_srr_disabled=${imsSrrDisabled}\"",
+                            script: "ansible-playbook -i ${env.ANSIBLE_INVENTORY} zabhapreboot.yaml --limit ${host} --extra-vars \"ansible_user=${env.ANSIBLE_USER} ansible_password=${env.ANSIBLE_PASSWORD} hap_reboot=${hapReboot}\"",
                             returnStatus: true
                         )
 
