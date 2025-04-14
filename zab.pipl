@@ -68,19 +68,23 @@ pipeline {
             }
         }
 
-        stage('Initialize DB Hosts') {
-            steps {
-                script {
-                    def dbHosts = sh(script: "yq eval '.all.children.DB.hosts | keys | .[]' ${env.ANSIBLE_INVENTORY}", returnStdout: true).trim().split('\n')
-                    if (dbHosts.isEmpty()) {
-                        error "No DB hosts found in inventory!"
-                    }
+stage('Initialize DB Hosts') {
+    script {
+        def dbHostsOutput = sh(
+            script: "yq eval '.all.children.DB.hosts | keys | .[]' inventory.yaml",
+            returnStdout: true
+        ).trim()
+        
+        def dbHosts = dbHostsOutput ? dbHostsOutput.split("\\r?\\n") : []
 
-                    env.DB_SERVERS = dbHosts.join(',')
-                    env.CHECK_HOST = dbHosts[0]
-                }
-            }
+        if (dbHosts.size() == 0) {
+            error "No DB hosts found in inventory."
         }
+
+        echo "DB Hosts: ${dbHosts}"
+    }
+}
+
 
         stage('Check Initial Patroni Status') {
             steps {
