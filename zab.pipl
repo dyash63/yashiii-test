@@ -35,13 +35,12 @@ pipeline {
         stage('Initialize Host Lists') {
             steps {
                 script {
-                    // Get HAP hosts
+                    
                     env.HAP_HOSTS = sh(
                         script: "yq eval '.all.children.HAP.hosts | keys | .[]' ${env.ANSIBLE_INVENTORY}",
                         returnStdout: true
                     ).trim().replaceAll('\n', ',')
 
-                    // Get DB hosts
                     env.DB_HOSTS = sh(
                         script: "yq eval '.all.children.DB.hosts | keys | .[]' ${env.ANSIBLE_INVENTORY}",
                         returnStdout: true
@@ -65,11 +64,13 @@ pipeline {
                             id: "hap-reboot-${host}",
                             message: "Reboot HAP host ${host}?",
                             parameters: [
-                                choice(name: 'action', choices: ['yes', 'no'], description: 'Confirm reboot')
+                                choice(name: 'action', choices: ['skip', 'continue', 'abort'], description: 'Select an action')
                             ]
                         )
                         
-                        if (proceed == 'yes') {
+                        if (proceed == 'abort') {
+                            error "Aborted by user. Stopping the pipeline."
+                        } else if (proceed == 'continue') {
                             echo "Rebooting HAP host: ${host}"
                             def result = sh(
                                 script: "ansible-playbook -i ${env.ANSIBLE_INVENTORY} --limit ${host} zabhapreboot.yaml --extra-vars \"ansible_user=${env.ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD}\"",
@@ -78,6 +79,8 @@ pipeline {
                             if (result != 0) {
                                 error "Reboot of HAP host ${host} failed!"
                             }
+                        } else {
+                            echo "Skipping reboot of HAP host: ${host}"
                         }
                     }
                 }
@@ -107,19 +110,26 @@ pipeline {
                         ]
                     )
                     
-                    echo "Rebooting first DB server: ${firstHost}"
-                    sh "ansible-playbook -i ${env.ANSIBLE_INVENTORY} --limit ${firstHost} zabhapreboot.yaml --extra-vars \"ansible_user=${env.ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD}\""
+                    def proceedFirstHost = input(
+                        id: "first-db-reboot-${firstHost}",
+                        message: "Reboot DB server ${firstHost}?",
+                        parameters: [
+                            choice(name: 'action', choices: ['skip', 'continue', 'abort'], description: 'Select an action')
+                        ]
+                    )
+                    
+                    if (proceedFirstHost == 'abort') {
+                        error "Aborted by user. Stopping the pipeline."
+                    } else if (proceedFirstHost == 'continue') {
+                        echo "Rebooting first DB server: ${firstHost}"
+                        sh "ansible-playbook -i ${env.ANSIBLE_INVENTORY} --limit ${firstHost} zabhapreboot.yaml --extra-vars \"ansible_user=${env.ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD}\""
+                    } else {
+                        echo "Skipping reboot of first DB server: ${firstHost}"
+                    }
                     
                     // Wait for stabilization
                     echo "Waiting 5 minutes for cluster stabilization..."
                     sleep(time: 5, unit: 'MINUTES')
-
-                    // Cluster Failover Step
-                    sh "ansible-playbook -i ${env.ANSIBLE_INVENTORY} failover_patroni.yaml --extra-vars \"ansible_user=${env.ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD} target_host=${dbHostList[0]}\""
-
-                    // Wait for 2 mins post failover
-                    echo "Waiting 2 minutes post failover"
-                    sleep(time: 2, unit: 'MINUTES')
                     
                     // Post-reboot status check
                     sh "ansible-playbook -i ${env.ANSIBLE_INVENTORY} check_patroni.yml --extra-vars \"ansible_user=${env.ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD} target_host=${dbHostList[0]}\""
@@ -138,8 +148,22 @@ pipeline {
                             ]
                         )
                         
-                        echo "Rebooting second DB server: ${secondHost}"
-                        sh "ansible-playbook -i ${env.ANSIBLE_INVENTORY} --limit ${secondHost} zabhapreboot.yaml --extra-vars \"ansible_user=${env.ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD}\""
+                        def proceedSecondHost = input(
+                            id: "second-db-reboot-${secondHost}",
+                            message: "Reboot DB server ${secondHost}?",
+                            parameters: [
+                                choice(name: 'action', choices: ['skip', 'continue', 'abort'], description: 'Select an action')
+                            ]
+                        )
+                        
+                        if (proceedSecondHost == 'abort') {
+                            error "Aborted by user. Stopping the pipeline."
+                        } else if (proceedSecondHost == 'continue') {
+                            echo "Rebooting second DB server: ${secondHost}"
+                            sh "ansible-playbook -i ${env.ANSIBLE_INVENTORY} --limit ${secondHost} zabhapreboot.yaml --extra-vars \"ansible_user=${env.ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD}\""
+                        } else {
+                            echo "Skipping reboot of second DB server: ${secondHost}"
+                        }
                     }
                 }
             }
