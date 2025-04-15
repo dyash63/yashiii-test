@@ -129,7 +129,14 @@ pipeline {
                     
                     // Wait for stabilization
                     echo "Waiting 5 minutes for cluster stabilization..."
-                    sleep(time: 1, unit: 'MINUTES')
+                    sleep(time: 10, unit: 'SECONDS')
+
+                    // Cluster Failover Step
+                    sh "ansible-playbook -i ${env.ANSIBLE_INVENTORY} failover_patroni.yaml --extra-vars \"ansible_user=${env.ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD} target_host=${dbHostList[0]}\""
+
+                    // Wait for 2 mins post failover
+                    echo "Waiting 2 minutes post failover"
+                    sleep(time: 10, unit: 'SECONDS')
                     
                     // Post-reboot status check
                     sh "ansible-playbook -i ${env.ANSIBLE_INVENTORY} check_patroni.yml --extra-vars \"ansible_user=${env.ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD} target_host=${dbHostList[0]}\""
