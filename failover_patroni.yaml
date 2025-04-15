@@ -1,0 +1,13 @@
+---
+- name: Failover Patroni cluster 
+  hosts: "{{ target_host }}"
+  gather_facts: no
+  tasks:
+    - name: Run patronictl list
+      command: cat /var/log/clutser 
+      register: patroni_failover
+      changed_when: false
+
+    - name: Display Patroni cluster status
+      debug:
+        msg: "{{ patroni_failover.stdout_lines }}"
