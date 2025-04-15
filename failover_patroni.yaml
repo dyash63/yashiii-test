@@ -8,6 +8,6 @@
       register: patroni_failover
       changed_when: false
 
-    - name: Display Patroni cluster status
+    - name: Display Failover cluster status
       debug:
         msg: "{{ patroni_failover.stdout_lines }}"
