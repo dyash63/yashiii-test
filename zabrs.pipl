@@ -1,0 +1,142 @@
+pipeline {
+    agent any
+
+    environment {
+        ANSIBLE_INVENTORY = "inventory.yaml"
+        ANSIBLE_USER = 'root'
+        ANSIBLE_PASSWORD = 'welcome@123'
+        PATH = "/opt/homebrew/bin:${env.PATH}"
+    }
+
+    stages {
+        stage('Checkout Repository') {
+            steps {
+                git branch: 'main', url: 'https://github.com/dyash63/yashiii-test.git'
+            }
+        }
+
+        stage('Install Dependencies') {
+            steps {
+                sh '''
+                    if ! command -v ansible &> /dev/null; then
+                        echo "Installing Ansible..."
+                        brew install ansible
+                    fi
+                    if ! command -v yq &> /dev/null; then
+                        echo "Installing yq..."
+                        brew install yq
+                    fi
+                    ansible --version
+                    ansible-galaxy collection install community.general
+                '''
+            }
+        }
+
+        stage('Initialize Host Lists') {
+            steps {
+                script {
+                    env.RS_HOSTS = sh(
+                        script: "yq eval '.all.children.RS.hosts | keys | .[]' ${env.ANSIBLE_INVENTORY}",
+                        returnStdout: true
+                    ).trim().replaceAll('\n', ',')
+
+                    echo "RS Hosts: ${env.RS_HOSTS}"
+                }
+            }
+        }
+
+        stage('RS Host Maintenance Flow') {
+            steps {
+                script {
+                    def selectedHost = input(
+                        id: 'reboot-rs-node',
+                        message: 'Select the RS host to reboot and maintain:',
+                        parameters: [
+                            [$class: 'ChoiceParameterDefinition',
+                             name: 'RS_HOST',
+                             choices: env.RS_HOSTS.replaceAll(',', '\n'),
+                             description: 'Select RS host']
+                        ]
+                    )
+
+                    def proceed = input(
+                        id: "rs-reboot-${selectedHost}",
+                        message: "Do you want to reboot RS host ${selectedHost}?",
+                        parameters: [
+                            choice(name: 'action', choices: ['skip', 'continue', 'abort'], description: 'Select an action')
+                        ]
+                    )
+
+                    if (proceed == 'abort') {
+                        error "Aborted by user. Stopping the pipeline."
+                    } else if (proceed == 'continue') {
+                        echo "Rebooting ${selectedHost}..."
+                        sh """
+                            ansible-playbook -i ${env.ANSIBLE_INVENTORY} --limit ${selectedHost} zabhapreboot.yaml \
+                            --extra-vars \"ansible_user=${env.ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD}\"
+                        """
+
+                        echo "Waiting 1 minute post-reboot..."
+                        sleep(time: 60, unit: 'SECONDS')
+
+                        sh """
+                            ansible ${selectedHost} -i ${env.ANSIBLE_INVENTORY} -m shell \
+                            -a 'pcs status' \
+                            -u ${env.ANSIBLE_USER} -e ansible_password=${ANSIBLE_PASSWORD}
+                        """
+
+                        echo "Putting ${selectedHost} into standby..."
+                        sh """
+                            ansible ${selectedHost} -i ${env.ANSIBLE_INVENTORY} -m shell \
+                            -a 'pcs node standby ${selectedHost}' \
+                            -u ${env.ANSIBLE_USER} -e ansible_password=${ANSIBLE_PASSWORD}
+                        """
+
+                        sh """
+                            ansible ${selectedHost} -i ${env.ANSIBLE_INVENTORY} -m shell \
+                            -a 'pcs status' \
+                            -u ${env.ANSIBLE_USER} -e ansible_password=${ANSIBLE_PASSWORD}
+                        """
+
+                        echo "Rebooting standby host ${selectedHost}..."
+                        sh """
+                            ansible-playbook -i ${env.ANSIBLE_INVENTORY} --limit ${selectedHost} zabhapreboot.yaml \
+                            --extra-vars \"ansible_user=${env.ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD}\"
+                        """
+
+                        echo "Waiting 1 minute after rebooting standby node..."
+                        sleep(time: 60, unit: 'SECONDS')
+
+                        sh """
+                            ansible ${selectedHost} -i ${env.ANSIBLE_INVENTORY} -m shell \
+                            -a 'pcs status' \
+                            -u ${env.ANSIBLE_USER} -e ansible_password=${ANSIBLE_PASSWORD}
+                        """
+
+                        echo "Unstanding ${selectedHost}..."
+                        sh """
+                            ansible ${selectedHost} -i ${env.ANSIBLE_INVENTORY} -m shell \
+                            -a 'pcs node unstandby ${selectedHost}' \
+                            -u ${env.ANSIBLE_USER} -e ansible_password=${ANSIBLE_PASSWORD}
+                        """
+
+                        sh """
+                            ansible ${selectedHost} -i ${env.ANSIBLE_INVENTORY} -m shell \
+                            -a 'pcs status' \
+                            -u ${env.ANSIBLE_USER} -e ansible_password=${ANSIBLE_PASSWORD}
+                        """
+                    } else {
+                        echo "Skipping maintenance of RS host: ${selectedHost}"
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            echo "RS node maintenance flow completed."
+            archiveArtifacts artifacts: '*.log', allowEmptyArchive: true
+        }
+    }
+}
