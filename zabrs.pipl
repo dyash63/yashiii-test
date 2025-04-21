@@ -150,7 +150,7 @@ pipeline {
 
                         sh """
                             ansible ${standbyHost} -i ${env.ANSIBLE_INVENTORY} -m shell \
-                            -a 'pcs status' \
+                            -a 'hostname' \
                             -u ${env.ANSIBLE_USER} -e ansible_password=${ANSIBLE_PASSWORD}
                         """
 
