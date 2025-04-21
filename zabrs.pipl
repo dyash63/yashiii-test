@@ -45,89 +45,89 @@ pipeline {
             }
         }
 
-        stage('RS Host Maintenance Flow') {
+        stage('Reboot RS Host') {
             steps {
                 script {
-                    def selectedHost = input(
-                        id: 'reboot-rs-node',
-                        message: 'Select the RS host to reboot and maintain:',
+                    def rebootHost = input(
+                        id: 'select-rs-host',
+                        message: 'Select the RS host to reboot:',
                         parameters: [
                             [$class: 'ChoiceParameterDefinition',
-                             name: 'RS_HOST',
+                             name: 'RS_HOST_REBOOT',
                              choices: env.RS_HOSTS.replaceAll(',', '\n'),
-                             description: 'Select RS host']
+                             description: 'Select RS host to reboot']
                         ]
                     )
 
-                    def proceed = input(
-                        id: "rs-reboot-${selectedHost}",
-                        message: "Do you want to reboot RS host ${selectedHost}?",
+                    echo "Rebooting ${rebootHost}..."
+                    sh """
+                        ansible-playbook -i ${env.ANSIBLE_INVENTORY} --limit ${rebootHost} zabhapreboot.yaml \
+                        --extra-vars \"ansible_user=${env.ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD}\"
+                    """
+
+                    echo "Waiting 1 minute post-reboot..."
+                    sleep(time: 60, unit: 'SECONDS')
+
+                    sh """
+                        ansible ${rebootHost} -i ${env.ANSIBLE_INVENTORY} -m shell \
+                        -a 'pcs status' \
+                        -u ${env.ANSIBLE_USER} -e ansible_password=${ANSIBLE_PASSWORD}
+                    """
+                }
+            }
+        }
+
+        stage('Standby and Reboot RS Host') {
+            steps {
+                script {
+                    def standbyHost = input(
+                        id: 'standby-rs-host',
+                        message: 'Select the RS host to put into standby:',
                         parameters: [
-                            choice(name: 'action', choices: ['skip', 'continue', 'abort'], description: 'Select an action')
+                            [$class: 'ChoiceParameterDefinition',
+                             name: 'RS_HOST_STANDBY',
+                             choices: env.RS_HOSTS.replaceAll(',', '\n'),
+                             description: 'Select RS host to place in standby']
                         ]
                     )
 
-                    if (proceed == 'abort') {
-                        error "Aborted by user. Stopping the pipeline."
-                    } else if (proceed == 'continue') {
-                        echo "Rebooting ${selectedHost}..."
-                        sh """
-                            ansible-playbook -i ${env.ANSIBLE_INVENTORY} --limit ${selectedHost} zabhapreboot.yaml \
-                            --extra-vars \"ansible_user=${env.ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD}\"
-                        """
+                    echo "Putting ${standbyHost} into standby..."
+                    sh """
+                        ansible ${standbyHost} -i ${env.ANSIBLE_INVENTORY} -m shell \
+                        -a 'pcs node standby ${standbyHost}' \
+                        -u ${env.ANSIBLE_USER} -e ansible_password=${ANSIBLE_PASSWORD}
+                    """
 
-                        echo "Waiting 1 minute post-reboot..."
-                        sleep(time: 60, unit: 'SECONDS')
+                    echo "Waiting 1 minute before rebooting standby host..."
+                    sleep(time: 60, unit: 'SECONDS')
 
-                        sh """
-                            ansible ${selectedHost} -i ${env.ANSIBLE_INVENTORY} -m shell \
-                            -a 'pcs status' \
-                            -u ${env.ANSIBLE_USER} -e ansible_password=${ANSIBLE_PASSWORD}
-                        """
+                    echo "Rebooting standby host ${standbyHost}..."
+                    sh """
+                        ansible-playbook -i ${env.ANSIBLE_INVENTORY} --limit ${standbyHost} zabhapreboot.yaml \
+                        --extra-vars \"ansible_user=${env.ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD}\"
+                    """
 
-                        echo "Putting ${selectedHost} into standby..."
-                        sh """
-                            ansible ${selectedHost} -i ${env.ANSIBLE_INVENTORY} -m shell \
-                            -a 'pcs node standby ${selectedHost}' \
-                            -u ${env.ANSIBLE_USER} -e ansible_password=${ANSIBLE_PASSWORD}
-                        """
+                    echo "Waiting 1 minute post-reboot..."
+                    sleep(time: 60, unit: 'SECONDS')
 
-                        sh """
-                            ansible ${selectedHost} -i ${env.ANSIBLE_INVENTORY} -m shell \
-                            -a 'pcs status' \
-                            -u ${env.ANSIBLE_USER} -e ansible_password=${ANSIBLE_PASSWORD}
-                        """
+                    sh """
+                        ansible ${standbyHost} -i ${env.ANSIBLE_INVENTORY} -m shell \
+                        -a 'pcs status' \
+                        -u ${env.ANSIBLE_USER} -e ansible_password=${ANSIBLE_PASSWORD}
+                    """
 
-                        echo "Rebooting standby host ${selectedHost}..."
-                        sh """
-                            ansible-playbook -i ${env.ANSIBLE_INVENTORY} --limit ${selectedHost} zabhapreboot.yaml \
-                            --extra-vars \"ansible_user=${env.ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD}\"
-                        """
+                    echo "Unstanding ${standbyHost}..."
+                    sh """
+                        ansible ${standbyHost} -i ${env.ANSIBLE_INVENTORY} -m shell \
+                        -a 'pcs node unstandby ${standbyHost}' \
+                        -u ${env.ANSIBLE_USER} -e ansible_password=${ANSIBLE_PASSWORD}
+                    """
 
-                        echo "Waiting 1 minute after rebooting standby node..."
-                        sleep(time: 60, unit: 'SECONDS')
-
-                        sh """
-                            ansible ${selectedHost} -i ${env.ANSIBLE_INVENTORY} -m shell \
-                            -a 'pcs status' \
-                            -u ${env.ANSIBLE_USER} -e ansible_password=${ANSIBLE_PASSWORD}
-                        """
-
-                        echo "Unstanding ${selectedHost}..."
-                        sh """
-                            ansible ${selectedHost} -i ${env.ANSIBLE_INVENTORY} -m shell \
-                            -a 'pcs node unstandby ${selectedHost}' \
-                            -u ${env.ANSIBLE_USER} -e ansible_password=${ANSIBLE_PASSWORD}
-                        """
-
-                        sh """
-                            ansible ${selectedHost} -i ${env.ANSIBLE_INVENTORY} -m shell \
-                            -a 'pcs status' \
-                            -u ${env.ANSIBLE_USER} -e ansible_password=${ANSIBLE_PASSWORD}
-                        """
-                    } else {
-                        echo "Skipping maintenance of RS host: ${selectedHost}"
-                    }
+                    sh """
+                        ansible ${standbyHost} -i ${env.ANSIBLE_INVENTORY} -m shell \
+                        -a 'pcs status' \
+                        -u ${env.ANSIBLE_USER} -e ansible_password=${ANSIBLE_PASSWORD}
+                    """
                 }
             }
         }
