@@ -1,6 +1,6 @@
 all:
   children:
-    HAP:
+    RS:
       hosts:
         zabhapind1304:
           ansible_host: 172.16.151.128
