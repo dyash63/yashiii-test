@@ -35,88 +35,31 @@ pipeline {
         stage('Initialize Host Lists') {
             steps {
                 script {
-                    env.HAP_HOSTS = sh(
-                        script: "yq eval '.all.children.HAP.hosts | keys | .[]' ${env.ANSIBLE_INVENTORY}",
-                        returnStdout: true
-                    ).trim().replaceAll('\n', ',')
-
-                    env.DB_HOSTS = sh(
-                        script: "yq eval '.all.children.DB.hosts | keys | .[]' ${env.ANSIBLE_INVENTORY}",
-                        returnStdout: true
-                    ).trim().replaceAll('\n', ',')
-
                     env.RS_HOSTS = sh(
                         script: "yq eval '.all.children.RS.hosts | keys | .[]' ${env.ANSIBLE_INVENTORY}",
                         returnStdout: true
                     ).trim().replaceAll('\n', ',')
 
-                    echo "HAP Hosts: ${env.HAP_HOSTS}"
-                    echo "DB Hosts: ${env.DB_HOSTS}"
                     echo "RS Hosts: ${env.RS_HOSTS}"
                 }
             }
         }
 
-        stage('RS - Hostname Check') {
-            steps {
-                script {
-                    def rsList = env.RS_HOSTS.split(',')
-                    def statusHost = rsList[0] // pick any one RS node to run hostname
-
-                    sh """
-                        ansible ${statusHost} -i ${env.ANSIBLE_INVENTORY} -m shell -a 'hostname' \
-                        -u ${env.ANSIBLE_USER} -e ansible_password='${ANSIBLE_PASSWORD}'
-                    """
-                }
-            }
-        }
-
-        stage('RS - Node Standby (Mocked)') {
-            steps {
-                script {
-                    def selectedRSHost = input(
-                        id: 'standby-rs-node',
-                        message: 'Select the RS host to run mock standby (hostname; date):',
-                        parameters: [
-                            [$class: 'ChoiceParameterDefinition',
-                             name: 'RS_HOST',
-                             choices: env.RS_HOSTS.replaceAll(',', '\n'),
-                             description: 'Select RS host']
-                        ]
-                    )
-
-                    echo "Mocking standby for ${selectedRSHost}..."
-
-                    sh """
-                        ansible ${selectedRSHost} -i ${env.ANSIBLE_INVENTORY} -m shell -a 'hostname; date' \
-                        -u ${env.ANSIBLE_USER} -e ansible_password='${ANSIBLE_PASSWORD}'
-                    """
-
-                    // Post-standby mock status
-                    sh """
-                        ansible ${selectedRSHost} -i ${env.ANSIBLE_INVENTORY} -m shell -a 'hostname' \
-                        -u ${env.ANSIBLE_USER} -e ansible_password='${ANSIBLE_PASSWORD}'
-                    """
-                }
-            }
-        }
-
-        stage('RS - Reboot Host') {
+        stage('Reboot RS Host') {
             steps {
                 script {
                     def rebootHost = input(
-                        id: 'reboot-rs-node',
+                        id: 'select-rs-host',
                         message: 'Select the RS host to reboot:',
                         parameters: [
                             [$class: 'ChoiceParameterDefinition',
-                             name: 'REBOOT_RS_HOST',
+                             name: 'RS_HOST_REBOOT',
                              choices: env.RS_HOSTS.replaceAll(',', '\n'),
                              description: 'Select RS host to reboot']
                         ]
                     )
 
                     echo "Rebooting ${rebootHost}..."
-
                     sh """
                         ansible-playbook -i ${env.ANSIBLE_INVENTORY} --limit ${rebootHost} zabhapreboot.yaml \
                         --extra-vars \"ansible_user=${env.ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD}\"
@@ -125,10 +68,65 @@ pipeline {
                     echo "Waiting 1 minute post-reboot..."
                     sleep(time: 60, unit: 'SECONDS')
 
-                    // Mock unstandby
                     sh """
-                        ansible ${rebootHost} -i ${env.ANSIBLE_INVENTORY} -m shell -a 'hostname' \
-                        -u ${env.ANSIBLE_USER} -e ansible_password='${ANSIBLE_PASSWORD}'
+                        ansible ${rebootHost} -i ${env.ANSIBLE_INVENTORY} -m shell \
+                        -a 'pcs status' \
+                        -u ${env.ANSIBLE_USER} -e ansible_password=${ANSIBLE_PASSWORD}
+                    """
+                }
+            }
+        }
+
+        stage('Standby and Reboot RS Host') {
+            steps {
+                script {
+                    def standbyHost = input(
+                        id: 'standby-rs-host',
+                        message: 'Select the RS host to put into standby:',
+                        parameters: [
+                            [$class: 'ChoiceParameterDefinition',
+                             name: 'RS_HOST_STANDBY',
+                             choices: env.RS_HOSTS.replaceAll(',', '\n'),
+                             description: 'Select RS host to place in standby']
+                        ]
+                    )
+
+                    echo "Putting ${standbyHost} into standby..."
+                    sh """
+                        ansible ${standbyHost} -i ${env.ANSIBLE_INVENTORY} -m shell \
+                        -a 'pcs node standby ${standbyHost}' \
+                        -u ${env.ANSIBLE_USER} -e ansible_password=${ANSIBLE_PASSWORD}
+                    """
+
+                    echo "Waiting 1 minute before rebooting standby host..."
+                    sleep(time: 60, unit: 'SECONDS')
+
+                    echo "Rebooting standby host ${standbyHost}..."
+                    sh """
+                        ansible-playbook -i ${env.ANSIBLE_INVENTORY} --limit ${standbyHost} zabhapreboot.yaml \
+                        --extra-vars \"ansible_user=${env.ANSIBLE_USER} ansible_password=${ANSIBLE_PASSWORD}\"
+                    """
+
+                    echo "Waiting 1 minute post-reboot..."
+                    sleep(time: 60, unit: 'SECONDS')
+
+                    sh """
+                        ansible ${standbyHost} -i ${env.ANSIBLE_INVENTORY} -m shell \
+                        -a 'pcs status' \
+                        -u ${env.ANSIBLE_USER} -e ansible_password=${ANSIBLE_PASSWORD}
+                    """
+
+                    echo "Unstanding ${standbyHost}..."
+                    sh """
+                        ansible ${standbyHost} -i ${env.ANSIBLE_INVENTORY} -m shell \
+                        -a 'pcs node unstandby ${standbyHost}' \
+                        -u ${env.ANSIBLE_USER} -e ansible_password=${ANSIBLE_PASSWORD}
+                    """
+
+                    sh """
+                        ansible ${standbyHost} -i ${env.ANSIBLE_INVENTORY} -m shell \
+                        -a 'pcs status' \
+                        -u ${env.ANSIBLE_USER} -e ansible_password=${ANSIBLE_PASSWORD}
                     """
                 }
             }
@@ -137,7 +135,7 @@ pipeline {
 
     post {
         always {
-            echo "RS node mock maintenance flow completed."
+            echo "RS node maintenance flow completed."
             archiveArtifacts artifacts: '*.log', allowEmptyArchive: true
         }
     }
