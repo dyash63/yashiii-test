@@ -70,7 +70,7 @@ pipeline {
 
                     sh """
                         ansible ${rebootHost} -i ${env.ANSIBLE_INVENTORY} -m shell \
-                        -a 'pcs status' \
+                        -a 'hostname' \
                         -u ${env.ANSIBLE_USER} -e ansible_password=${ANSIBLE_PASSWORD}
                     """
                 }
@@ -94,7 +94,7 @@ pipeline {
                     echo "Putting ${standbyHost} into standby..."
                     sh """
                         ansible ${standbyHost} -i ${env.ANSIBLE_INVENTORY} -m shell \
-                        -a 'pcs node standby ${standbyHost}' \
+                        -a 'echo ${standbyHost}' \
                         -u ${env.ANSIBLE_USER} -e ansible_password=${ANSIBLE_PASSWORD}
                     """
 
